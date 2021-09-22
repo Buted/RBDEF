@@ -1,0 +1,6 @@
+{
+    "dataset": "ACE",
+    "raw_data_root": "ace2005data",
+    "raw_data_list": ["train.json", "dev.json", "test.json"],
+    "data_root": "data/ACE"
+}
