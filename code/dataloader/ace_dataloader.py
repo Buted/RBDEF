@@ -9,7 +9,7 @@ from typing import List, Tuple, Dict
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
-from code.config import Hyper
+from code.config import Hyper, NonEvent, NonEntity
 from code.utils import JsonHandler
 
 
@@ -36,10 +36,12 @@ class ACE_Dataset(Dataset):
             self.label,
             self.entity_start,
             self.entity_end,
-            self.entity_type,
-            self.event_type,
+            # self.entity_type,
+            # self.event_type,
             self.trigger_start,
-            self.trigger_end
+            self.trigger_end,
+            self.entity_id,
+            self.event_id
         ) = ([] for _ in range(8))
 
         sample_num = 0
@@ -51,16 +53,25 @@ class ACE_Dataset(Dataset):
             entity = sample["entity"]
             entity_start, entity_end = wid2tid[entity["start"]], wid2tid[entity["end"]]
             entity_type = hyper.entity2id[entity["entity_type"]]
+            entity_id = np.full_like(tokens, hyper.entity2id[NonEntity])
+            entity_id[entity_start: entity_end] = entity_type
+            entity_id = entity_id.tolist()
+
             label = hyper.role2id[entity["role"]]
+
             trigger = sample["trigger"]
             trigger_start, trigger_end = wid2tid[trigger["start"]], wid2tid[trigger["end"]]
+            event_type = hyper.event2id[sample["event_type"]]
+            event_id = np.full_like(tokens, hyper.event2id[NonEvent])
+            event_id[trigger_start: trigger_end] = event_type
+            event_id = event_id.tolist()
 
             self.tokens.append(tokens)
             self.label.append(label)
             self.entity_start.append(entity_start)
             self.entity_end.append(entity_end)
-            self.entity_type.append(entity_type)
-            self.event_type.append(hyper.event2id[sample["event_type"]])
+            self.entity_id.append(entity_id)
+            self.event_id.append(event_id)
             self.trigger_start.append(trigger_start)
             self.trigger_end.append(trigger_end)
         
@@ -86,8 +97,8 @@ class ACE_Dataset(Dataset):
             self.label[index],
             self.entity_start[index],
             self.entity_end[index],
-            self.entity_type[index],
-            self.event_type[index],
+            self.entity_id[index],
+            self.event_id[index],
             self.trigger_start[index],
             self.trigger_end[index]
         )
@@ -102,17 +113,17 @@ class Batch_reader(object):
 
         self.tokens = torch.LongTensor(seq_padding(transposed_data[0]))
 
-        self.label = self._to_float_tensor(transposed_data[1])
+        self.label = self._to_long_tensor(transposed_data[1])
         
-        self.entity_start = self._to_long_tenor(transposed_data[2])
-        self.entity_end = self._to_long_tenor(transposed_data[3])
-        self.entity_type = self._to_long_tenor(transposed_data[4])
-        self.event_type = self._to_long_tenor(transposed_data[5])
-        self.trigger_start = self._to_long_tenor(transposed_data[6])
-        self.trigger_end = self._to_long_tenor(transposed_data[7])
+        self.entity_start = self._to_long_tensor(transposed_data[2])
+        self.entity_end = self._to_long_tensor(transposed_data[3])
+        self.entity_id = torch.LongTensor(seq_padding(transposed_data[4]))
+        self.event_id = torch.LongTensor(seq_padding(transposed_data[5]))
+        self.trigger_start = self._to_long_tensor(transposed_data[6])
+        self.trigger_end = self._to_long_tensor(transposed_data[7])
 
     @staticmethod
-    def _to_long_tenor(data: List) -> torch.LongTensor:
+    def _to_long_tensor(data: List) -> torch.LongTensor:
         return torch.LongTensor(np.array(data))
 
     @staticmethod
@@ -124,8 +135,8 @@ class Batch_reader(object):
         self.label = self.label.pin_memory()
         self.entity_start = self.entity_start.pin_memory()
         self.entity_end = self.entity_end.pin_memory()
-        self.entity_type = self.entity_type.pin_memory()
-        self.event_type = self.event_type.pin_memory()
+        self.entity_id = self.entity_id.pin_memory()
+        self.event_id = self.event_id.pin_memory()
         self.trigger_start = self.trigger_start.pin_memory()
         self.trigger_end = self.trigger_end.pin_memory()
         return self
