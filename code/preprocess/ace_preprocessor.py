@@ -4,7 +4,7 @@ import logging
 
 from typing import List, Dict, Tuple
 
-from code.config import NonRole
+from code.config import NonRole, NonEntity, NonEvent
 from code.utils import JsonHandler
 
 
@@ -135,8 +135,8 @@ class ACE_Preprocessor:
         if not os.path.exists(self.data_root):
             os.makedirs(self.data_root)
 
-        self.entity2id = {}
-        self.event2id = {}
+        self.entity2id = {NonEntity: 0}
+        self.event2id = {NonEvent: 0}
         self.role2id = {NonRole: 0}
         
     def gen_type_vocab(self) -> None:

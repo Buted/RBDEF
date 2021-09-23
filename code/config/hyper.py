@@ -22,8 +22,13 @@ class Hyper(object):
         self.train: str
         self.dev: str
         self.test: str
-        self.embed_dim: int
         self.gpu: int
+        self.model: str
+        self.optimizer: str
+        self.batch_size_train: int
+        self.batch_size_eval: int
+        self.epoch_num: int
+        self.lr: float
     
         self.__dict__ = json.load(open(path, 'r'))
     
