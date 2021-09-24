@@ -2,7 +2,7 @@
     "dataset": "ACE",
     "data_root": "data/ACE",
     "raw_data_root": "ace2005data",
-    "raw_data_list": ["train.json", "dev.json", "test.json", "all_data.json"],
+    "raw_data_list": ["train.json", "dev.json", "test.json"],
     "train": "train.json",
     "dev": "dev.json",
     "test": "test.json",
@@ -12,5 +12,5 @@
     "batch_size_eval": 100,
     "epoch_num": 50,
     "lr": 0.001,
-    "gpu": 0
+    "gpu": 1
 }

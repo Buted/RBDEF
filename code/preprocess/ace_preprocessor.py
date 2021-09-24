@@ -64,7 +64,7 @@ class Sentence:
 
     @staticmethod
     def _extract_entity(entity_info: Dict) -> Entity:
-        return Entity(entity_info["start"], entity_info["end"], entity_info["entity-type"])
+        return Entity(entity_info["start"], entity_info["end"], entity_info["entity-type"].split(':')[0])
 
     def _extract_events(self):
         for event_info in self.sentence["golden-event-mentions"]:
