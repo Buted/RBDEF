@@ -9,7 +9,7 @@ from transformers.models.bert import BertModel
 
 from code.config import Hyper
 from code.models.classifier import Classifier
-from code.models.F1 import F1
+from code.metrics import F1
 
 
 class AEModel(nn.Module):
