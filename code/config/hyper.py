@@ -14,7 +14,7 @@ class Hyper(object):
         self.dataset: str
         self.data_root: str
 
-        # preprocess
+        # preprocess, merge
         self.raw_data_root: str
         self.raw_data_list: List[str]
 

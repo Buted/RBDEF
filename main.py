@@ -9,7 +9,7 @@ from typing import Tuple
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
-from code.preprocess import ACE_Preprocessor
+from code.preprocess import ACE_Preprocessor, merge_dataset
 from code.dataloader import ACE_Dataset, ACE_loader
 from code.models import AEModel
 
@@ -56,6 +56,8 @@ class Runner:
             self._init_model()
             self._init_optimizer()
             self.train()
+        elif mode == 'merge':
+            merge_dataset(self.hyper)
         else:
             raise ValueError("Invalid mode!")
 
