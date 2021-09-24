@@ -27,7 +27,7 @@ class AEModel(nn.Module):
         self.pool = partial(torch.mean, dim=-2)
         self.pooling = lambda x, valid_cnt: self.pool(x) * x.shape[-2] / valid_cnt
         
-        self.main_classifier = Classifier(embed_dim, hyper.role_vocab_sie)
+        self.main_classifier = Classifier(embed_dim, hyper.role_vocab_size)
 
         self.main_loss = nn.CrossEntropyLoss()
 

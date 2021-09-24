@@ -29,6 +29,9 @@ class Hyper(object):
         self.batch_size_eval: int
         self.epoch_num: int
         self.lr: float
+
+        # statistic
+        self.statistic: str
     
         self.__dict__ = json.load(open(path, 'r'))
     
@@ -49,7 +52,7 @@ class Hyper(object):
 
         self.entity_vocab_size = len(self.entity2id)
         self.event_vocab_size = len(self.event2id)
-        self.role_vocab_sie = len(self.role2id)
+        self.role_vocab_size = len(self.role2id)
     
     @cached_property
     def tokenizer(self):

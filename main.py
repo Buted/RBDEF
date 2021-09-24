@@ -12,6 +12,7 @@ from code.config import Hyper
 from code.preprocess import ACE_Preprocessor, merge_dataset
 from code.dataloader import ACE_Dataset, ACE_loader
 from code.models import AEModel
+from code.statistic import CoOccurStatistic
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
@@ -58,6 +59,9 @@ class Runner:
             self.train()
         elif mode == 'merge':
             merge_dataset(self.hyper)
+        elif mode == 'statistic':
+            self.hyper.vocab_init()
+            self._statistic()
         else:
             raise ValueError("Invalid mode!")
 
@@ -214,6 +218,13 @@ class Runner:
             torch.load(os.path.join(self.model_dir, self.exp_name + "_" + name))
         )
 
+    def _statistic(self):
+        co_occur_matrix = CoOccurStatistic(self.hyper)
+        formatted_matrix = co_occur_matrix.format_co_occur_matrix()
+        logging.info(
+            "%s co-occur matrix: %s" 
+            % (self.hyper.statistic, formatted_matrix)
+        )
 
 
 
