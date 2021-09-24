@@ -34,3 +34,10 @@ class CoOccurStatistic:
             formatted_matrix += "%-13s" % self.hyper.id2entity[i]
             formatted_matrix += line_format(self.entity_role_co_occur[self.hyper.id2entity[i]])
         return formatted_matrix
+    
+    def save_matrix(self, filename: str) -> None:
+        matrix = {
+            self.hyper.entity2id[entity_type]: co_occur
+            for entity_type, co_occur in self.entity_role_co_occur.items()
+        }
+        JsonHandler.write_json(filename, matrix)
