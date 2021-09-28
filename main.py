@@ -31,7 +31,14 @@ parser.add_argument(
     "-m",
     type=str,
     default="preprocess",
-    help="preprocess|tain|evaluation"
+    help="preprocess|tain|merge|statistic|indicator"
+)
+parser.add_argument(
+    "--sub_mode",
+    "-s",
+    type=str,
+    default="evaluate",
+    help="train|evaluate for indicator mode"
 )
 args = parser.parse_args()
 
@@ -44,8 +51,8 @@ class Runner:
         self.hyper = Hyper(os.path.join("config", exp_name + '.json'))
         self.model_dir = os.path.join("saved_models", self.exp_name)
     
-    def run(self, mode: str) -> None:
-        self._init_logger(mode)
+    def run(self, mode: str, **kwargs) -> None:
+        self._init_logger(mode, **kwargs)
 
         if mode == 'preprocess':
             preprocessor = ACE_Preprocessor(self.hyper)
@@ -68,14 +75,17 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._init_optimizer()
-            self._train_and_evaluate_indicator()
+            if kwargs["sub_mode"] == 'train':
+                self._train_and_evaluate_indicator()
+            else:
+                self._evaluate_indicator()
         else:
             raise ValueError("Invalid mode!")
 
 
 
-    def _init_logger(self, mode):
-        log_filename = mode
+    def _init_logger(self, mode, **kwargs):
+        log_filename = mode if len(kwargs) == 0 else "-".join([mode] + [str(val) for val in kwargs.values()])
         log_dir = os.path.join("logs", self.exp_name)
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
@@ -271,10 +281,16 @@ class Runner:
         # NonRole_log = 'Only NonRole:\n' + format_report('NonRole', NonRole_indicator[0])
         # logging.info(NonRole_log)
     
+    def _evaluate_indicator(self) -> None:
+        self.load_model("best")
+        logging.info("Load dataset.")
+        test_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
+        logging.info("Evaluate start.")
+        self._report_indicator(test_loader)
 
             
 
 
 if __name__ == '__main__':
     runner = Runner(exp_name=args.exp_name)
-    runner.run(mode=args.mode)
+    runner.run(mode=args.mode, sub_mode=args.sub_mode)
