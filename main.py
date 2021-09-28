@@ -62,6 +62,13 @@ class Runner:
         elif mode == 'statistic':
             self.hyper.vocab_init()
             self._statistic()
+        elif mode == 'indicator':
+            self.hyper.vocab_init()
+            self.hyper.matrix_init()
+            self._init_loader()
+            self._init_model()
+            self._init_optimizer()
+            self._train_and_evaluate_indicator()
         else:
             raise ValueError("Invalid mode!")
 
@@ -102,28 +109,9 @@ class Runner:
         score = 0.
         best_epoch = 0
         logging.info("Train start.")
-        batch_num = len(train_loader)
         for epoch in range(self.hyper.epoch_num):
-            self.model.train()
-            pbar = tqdm(
-                enumerate(BackgroundGenerator(train_loader)),
-                total=len(train_loader)
-            )
-            loss = 0
-            for _, sample in pbar:
-                self.optimizer.zero_grad()
+            self._train_one_epoch(train_loader, epoch)
 
-                output = self.model(sample, is_train=True)
-
-                output["loss"].backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
-
-                self.optimizer.step()
-
-                pbar.set_description(output["description"](epoch, self.hyper.epoch_num))
-                loss += output["loss"].item()
-            
-            logging.info("Epoch: %d, loss: %.4f" % (epoch, loss / batch_num))
             new_score, log = self.evaluation(dev_loader)
             logging.info(log)
             if new_score >= score:
@@ -137,33 +125,47 @@ class Runner:
         _, log = self.evaluation(test_loader)
         logging.info(log)
 
+    def _train_one_epoch(self, train_loader, epoch):
+        batch_num = len(train_loader)
+        self.model.train()
+        pbar = tqdm(
+                enumerate(BackgroundGenerator(train_loader)),
+                total=len(train_loader)
+            )
+        loss = 0
+        for _, sample in pbar:
+            self.optimizer.zero_grad()
+
+            output = self.model(sample, is_train=True)
+
+            output["loss"].backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
+
+            self.optimizer.step()
+
+            pbar.set_description(output["description"](epoch, self.hyper.epoch_num))
+            loss += output["loss"].item()
+            
+        logging.info("Epoch: %d, loss: %.4f" % (epoch, loss / batch_num))
+
     def _load_datasets(self):
         logging.info("Load dataset.")
-        train_set = self.Dataset(self.hyper, self.hyper.train)
-        train_loader = self.Loader(
-            train_set,
-            batch_size=self.hyper.batch_size_train,
-            pin_memory=True,
-            num_workers=8
-        )
+        train_loader = self._get_loader(self.hyper.train, self.hyper.batch_size_train, 8)
         logging.info('Load trainset done.')
-        dev_set = self.Dataset(self.hyper, self.hyper.dev)
-        dev_loader = self.Loader(
-            dev_set,
-            batch_size=self.hyper.batch_size_eval,
-            pin_memory=True,
-            num_workers=4,
-        )
+        dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info('Load devset done.')
-        test_set = self.Dataset(self.hyper, self.hyper.test)
-        test_loader = self.Loader(
-            test_set,
-            batch_size=self.hyper.batch_size_eval,
-            pin_memory=True,
-            num_workers=4,
-        )
+        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
         return train_loader,dev_loader,test_loader
+
+    def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
+        data_set = self.Dataset(self.hyper, dataset)
+        return self.Loader(
+            data_set,
+            batch_size=batch_size,
+            pin_memory=True,
+            num_workers=num_workers
+        )
 
     def evaluation(self, loader) -> Tuple[float, str]:
         self.model.reset()
@@ -182,7 +184,6 @@ class Runner:
                 [
                     "%s: %.4f" % (name, value)
                     for name, value in result.items()
-                    if not name.startswith("_")
                 ]
             )
             + " ||"
@@ -227,6 +228,51 @@ class Runner:
         )
         co_occur_matrix.save_matrix(os.path.join(self.hyper.data_root, 'co_occur_matrix.json'))
 
+    def _train_and_evaluate_indicator(self):
+        logging.info("Load dataset.")
+        train_loader = self._get_loader(self.hyper.statistic, self.hyper.batch_size_train, 8)
+        test_loader = self._get_loader(self.hyper.statistic, self.hyper.batch_size_eval, 4)
+        logging.info("Train start.")
+        for epoch in range(self.hyper.epoch_num):
+            self._train_one_epoch(train_loader, epoch)
+            self._report_indicator(test_loader)
+
+    def _report_indicator(self, loader) -> None:
+        self.model.reset()
+        self.model.reset_indicators()
+        self.model.eval()
+
+        pbar = tqdm(enumerate(BackgroundGenerator(loader)), total=len(loader))
+
+        with torch.no_grad():
+            for _, sample in pbar:
+                output = self.model(sample, is_train=False)
+                self.model.update_indicators(sample, output["probability"])
+            
+        F1_report, role_indicator, NonRole_indicator = self.model.report()
+
+        format_report = lambda result_class, result: "%-6s" % str(result_class) + ", ".join(
+                [
+                    "%s: %.4f" % (name, value)
+                    for name, value in result.items()
+                ]
+            )
+
+        F1_log = format_report('micro', F1_report[0])
+        for i in range(1, len(F1_report)):
+            F1_log += '\n' + format_report(i, F1_report[i])
+        logging.info(F1_log)
+
+        role_log = 'Each role indicator:'
+        for i in range(len(role_indicator)):
+            role_log += '\n' + format_report(i, role_indicator[i])
+        logging.info(role_log)
+
+        # NonRole_log = 'Only NonRole:\n' + format_report('NonRole', NonRole_indicator[0])
+        # logging.info(NonRole_log)
+    
+
+            
 
 
 if __name__ == '__main__':

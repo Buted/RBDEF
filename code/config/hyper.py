@@ -7,6 +7,8 @@ from typing import List
 from dataclasses import dataclass
 from cached_property import cached_property
 
+from code.utils import JsonHandler
+
 
 @dataclass
 class Hyper(object):
@@ -60,3 +62,7 @@ class Hyper(object):
 
     def tokenize(self, text: str) -> List[str]:
         return self.tokenizer.tokenize(text)
+
+    def matrix_init(self):
+        matrix = JsonHandler.read_json(os.path.join(self.data_root, 'co_occur_matrix.json'))
+        self.co_occur_matrix = {int(entity_id): occur  for entity_id, occur in matrix.items()}

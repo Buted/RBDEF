@@ -8,6 +8,7 @@
     "test": "test.json",
     "model": "Main model",
     "optimizer": "adam",
+    "statistic": "test.json",
     "batch_size_train": 24,
     "batch_size_eval": 100,
     "epoch_num": 50,

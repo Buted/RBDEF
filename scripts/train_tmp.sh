@@ -1,4 +1,4 @@
-exp_name="ace"
+exp_name="ace_tmp"
 
 # python main.py --exp_name $exp_name --mode "preprocess"
 # python main.py --exp_name $exp_name --mode "merge"

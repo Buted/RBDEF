@@ -53,3 +53,22 @@ class F1:
             'fscore': report["f1-score"],
             'support': report["support"]
         }
+    
+    def report_all(self) -> List[Dict]:
+        report = classification_report(
+            y_true=self.golden, y_pred=self.predict, 
+            labels=self.valid_labels, 
+            digits=4, output_dict=True, zero_division=0
+        )
+        
+        output_keys = ['micro avg'] + [str(i) for i in self.valid_labels]
+        
+        return [
+            {
+                'precision': report[key]["precision"],
+                'recall': report[key]["recall"], 
+                'fscore': report[key]["f1-score"],
+                'support': report[key]["support"]
+            }
+            for key in output_keys
+        ]

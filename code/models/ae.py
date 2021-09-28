@@ -9,7 +9,7 @@ from transformers.models.bert import BertModel
 
 from code.config import Hyper
 from code.models.classifier import Classifier
-from code.metrics import F1
+from code.metrics import F1, Indicator
 
 
 class AEModel(nn.Module):
@@ -33,6 +33,8 @@ class AEModel(nn.Module):
 
         self.main_metric = F1(hyper)
         self.get_metric = self.main_metric.report
+        self.role_indicator = Indicator(hyper)
+        # self.NonRole_indicator = Indicator(hyper, {0: [1, 0], 1: [0, 1]})
 
         self.to(hyper.gpu)
 
@@ -52,6 +54,7 @@ class AEModel(nn.Module):
             output["description"] = partial(self.description, output=output)
         else:
             self._update_metric(logits, labels)
+            output["probability"] = torch.softmax(logits, dim=-1)
             
         return output
 
@@ -111,3 +114,20 @@ class AEModel(nn.Module):
     def _update_metric(self, logits, labels) -> None:
         predicts = torch.argmax(logits, dim=-1)
         self.main_metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
+    
+    def reset_indicators(self) -> None:
+        self.role_indicator.reset()
+        # self.NonRole_indicator.reset()
+
+    def update_indicators(self, sample, prob):
+        # to_binary = lambda x: torch.gt(x, 0).long()
+        self.role_indicator.update(prob, sample.label, sample.entity_type)
+        # self.NonRole_indicator.update(prob, to_binary(sample.label), to_binary(sample.entity_type))
+    
+    def report(self):
+        return (
+            self.main_metric.report_all(), 
+            self.role_indicator.report(),
+            # self.NonRole_indicator.report()
+            None
+        )
