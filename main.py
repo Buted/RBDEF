@@ -12,7 +12,7 @@ from code.config import Hyper
 from code.preprocess import ACE_Preprocessor, merge_dataset
 from code.dataloader import ACE_Dataset, ACE_loader
 from code.models import AEModel
-from code.statistic import CoOccurStatistic
+from code.statistic import CoOccurStatistic, Ranker
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
@@ -79,10 +79,11 @@ class Runner:
                 self._train_and_evaluate_indicator()
             else:
                 self._evaluate_indicator()
+        elif mode == 'rank':
+            self.hyper.vocab_init()
+            self._rank(kwargs["sub_mode"])
         else:
             raise ValueError("Invalid mode!")
-
-
 
     def _init_logger(self, mode, **kwargs):
         log_filename = mode if len(kwargs) == 0 else "-".join([mode] + [str(val) for val in kwargs.values()])
@@ -288,6 +289,17 @@ class Runner:
         logging.info("Evaluate start.")
         self._report_indicator(test_loader)
 
+    def _rank(self, sub_mode: str) -> None:
+        dir_name = os.path.join("logs", self.exp_name)
+        add_dir = lambda x: os.path.join(dir_name, x)
+        log_filename = add_dir('indicator-' + sub_mode + '.log')
+        pic_filename = add_dir('Rank.png')
+
+        ranker = Ranker(self.hyper.role_vocab_size)
+        ranker.match_file(log_filename)
+        ranker.ranking()
+        # ranker.save_as_img(pic_filename)
+        ranker.save_into_log()
             
 
 
