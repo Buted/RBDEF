@@ -13,5 +13,5 @@
     "batch_size_eval": 100,
     "epoch_num": 50,
     "lr": 0.001,
-    "gpu": 1
+    "gpu": 0
 }

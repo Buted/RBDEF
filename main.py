@@ -215,8 +215,9 @@ class Runner:
             os.mkdir(self.model_dir)
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.model_dir, self.exp_name + "_" + name),
+            os.path.join(self.model_dir, self.model.__class__.__name__ + "_" + name),
         )
+        self.model.save()
 
     def load_model(self, name: str):
         """Load model from file.
@@ -227,7 +228,7 @@ class Runner:
             model name.
         """
         self.model.load_state_dict(
-            torch.load(os.path.join(self.model_dir, self.exp_name + "_" + name))
+            torch.load(os.path.join(self.model_dir, self.model.__class__.__name__ + "_" + name))
         )
 
     def _statistic(self):

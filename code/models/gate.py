@@ -7,6 +7,7 @@ class Gate(nn.Module):
     def __init__(self, embed_dim: int):
         super(Gate, self).__init__()
         self.gate_linear = nn.Linear(embed_dim*2, embed_dim)
+        # self._init_linear()
     
     def _init_linear(self) -> None:
         nn.init.xavier_uniform_(self.gate_linear.weight)
