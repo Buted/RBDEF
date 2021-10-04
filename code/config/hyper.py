@@ -15,6 +15,7 @@ class Hyper(object):
     def __init__(self, path: str):
         self.dataset: str
         self.data_root: str
+        self.seed: int
 
         # preprocess, merge
         self.raw_data_root: str

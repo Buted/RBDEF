@@ -32,9 +32,6 @@ class AEModel(Model):
 
         self.to(hyper.gpu)
 
-    # def reset(self) -> None:
-    #     self.main_metric.reset()
-
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)
@@ -51,12 +48,6 @@ class AEModel(Model):
             output["probability"] = torch.softmax(logits, dim=-1)
             
         return output
-
-    # @staticmethod
-    # def description(epoch, epoch_num, output) -> str:
-    #     return "L: {:.2f}, epoch: {}/{}:".format(
-    #         output["loss"].item(), epoch, epoch_num,
-    #     )    
 
     def _update_metric(self, logits, labels) -> None:
         predicts = torch.argmax(logits, dim=-1)

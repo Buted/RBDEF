@@ -10,7 +10,7 @@ class Gate(nn.Module):
         # self._init_linear()
     
     def _init_linear(self) -> None:
-        nn.init.xavier_uniform_(self.gate_linear.weight)
+        nn.init.xavier_normal_(self.gate_linear.weight)
         self.gate_linear.bias.data.fill_(0)
 
     def forward(self, entity, trigger):

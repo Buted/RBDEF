@@ -6,13 +6,12 @@
     "train": "train.json",
     "dev": "dev.json",
     "test": "test.json",
-    "model": "Main model",
+    "model": "Selector",
     "optimizer": "adam",
     "statistic": "all_data.json",
     "batch_size_train": 24,
     "batch_size_eval": 100,
     "epoch_num": 50,
-    "lr": 0.005,
-    "seed": 42,
+    "lr": 0.001,
     "gpu": 0
 }

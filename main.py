@@ -4,6 +4,8 @@ import logging
 import argparse
 import torch
 
+import numpy as np
+
 from tqdm import tqdm
 from typing import Tuple
 from torch.optim import Adam, SGD
@@ -11,7 +13,7 @@ from torch.optim import Adam, SGD
 from code.config import Hyper
 from code.preprocess import ACE_Preprocessor, merge_dataset
 from code.dataloader import ACE_Dataset, ACE_loader
-from code.models import AEModel
+from code.models import AEModel, Selector
 from code.statistic import CoOccurStatistic, Ranker
 
 
@@ -50,6 +52,7 @@ class Runner:
         self.exp_name = exp_name
         self.hyper = Hyper(os.path.join("config", exp_name + '.json'))
         self.model_dir = os.path.join("saved_models", self.exp_name)
+        self._set_seed()
     
     def run(self, mode: str, **kwargs) -> None:
         self._init_logger(mode, **kwargs)
@@ -103,13 +106,17 @@ class Runner:
 
     def _init_model(self):
         logging.info(self.hyper.model)
-        self.model = AEModel(self.hyper)
+        model_dict = {
+            "Main model": AEModel,
+            "Selector": Selector
+        }
+        self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        bert_params = list(map(id, self.model.encoder.parameters()))
+        bert_params = list(map(id, self.model.encoder.encoder.parameters()))
         scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
         params_with_lr = [
-            {'params': self.model.encoder.parameters(), 'lr': 1e-5},
+            {'params': self.model.encoder.encoder.parameters(), 'lr': 1e-5},
             {'params': scratch_params, 'lr': self.hyper.lr}
         ]
         m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=0.5)}
@@ -301,6 +308,12 @@ class Runner:
         ranker.ranking()
         # ranker.save_as_img(pic_filename)
         ranker.save_into_log()
+    
+    def _set_seed(self):
+        np.random.seed(self.hyper.seed)
+        torch.manual_seed(self.hyper.seed)
+        torch.backends.cudnn.deterministic=True
+        torch.backends.cudnn.benchmark = False
             
 
 
