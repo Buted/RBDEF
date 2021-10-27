@@ -2,17 +2,19 @@ import os
 import logging
 # import warnings
 import argparse
+from re import S
 import torch
 
 import numpy as np
 
 from tqdm import tqdm
 from typing import Tuple
+from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
 from code.preprocess import ACE_Preprocessor, merge_dataset
-from code.dataloader import ACE_Dataset, ACE_loader
+from code.dataloader import *
 from code.models import AEModel, Selector
 from code.statistic import CoOccurStatistic, Ranker
 
@@ -85,6 +87,11 @@ class Runner:
         elif mode == 'rank':
             self.hyper.vocab_init()
             self._rank(kwargs["sub_mode"])
+        elif mode == 'P-R':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._plot_pr_curve()
         else:
             raise ValueError("Invalid mode!")
 
@@ -101,8 +108,16 @@ class Runner:
         )
 
     def _init_loader(self):
-        self.Dataset = ACE_Dataset
-        self.Loader = ACE_loader
+        dataset = {
+            "Main model": ACE_Dataset,
+            "Selector": partial(Selector_Dataset, select_roles=self.hyper.select_roles)
+        }
+        loader = {
+            "Main model": ACE_loader,
+            "Selector": Selector_loader
+        }
+        self.Dataset = dataset[self.hyper.model]
+        self.Loader = loader[self.hyper.model]
 
     def _init_model(self):
         logging.info(self.hyper.model)
@@ -175,6 +190,17 @@ class Runner:
         test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
         return train_loader,dev_loader,test_loader
+
+    def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
+        train_set = self.Dataset(self.hyper, dataset)
+        sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model == "Selector" else None
+        return self.Loader(
+            train_set,
+            sampler=sampler,
+            batch_size=batch_size,
+            pin_memory=True,
+            num_workers=num_workers
+        )
 
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)
@@ -277,7 +303,7 @@ class Runner:
                 ]
             )
 
-        F1_log = format_report('macro', F1_report[0])
+        F1_log = format_report('micro', F1_report[0])
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
@@ -293,7 +319,7 @@ class Runner:
     def _evaluate_indicator(self) -> None:
         self.load_model("best")
         logging.info("Load dataset.")
-        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
+        test_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info("Evaluate start.")
         self._report_indicator(test_loader)
 
@@ -315,6 +341,11 @@ class Runner:
         torch.backends.cudnn.deterministic=True
         torch.backends.cudnn.benchmark = False
             
+    def _plot_pr_curve(self):
+        self.model.load()
+        dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
+        self.evaluation(dev_loader)
+        self.model.curve.get_metric(True)
 
 
 if __name__ == '__main__':
