@@ -293,7 +293,7 @@ class Runner:
     def _evaluate_indicator(self) -> None:
         self.load_model("best")
         logging.info("Load dataset.")
-        test_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
+        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info("Evaluate start.")
         self._report_indicator(test_loader)
 

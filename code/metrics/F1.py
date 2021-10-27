@@ -61,7 +61,7 @@ class F1:
             digits=4, output_dict=True, zero_division=0
         )
         
-        output_keys = ['micro avg'] + [str(i) for i in self.valid_labels]
+        output_keys = ['macro avg'] + [str(i) for i in self.valid_labels]
         
         return [
             {
