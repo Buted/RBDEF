@@ -86,15 +86,13 @@ class Ranker(object):
 
         indicators = [(rank['golden'][i] + rank['unrelated'][i]) / 2 
             for i in range(len(self.role_ids))]
-        indicators = self._rank_list(indicators)
-        indicators = [(f1 + indicator) / 2 for f1, indicator in zip(rank['f1'], indicators)]
         rank['indicator'] = self._rank_list(indicators)
 
         return rank
 
     def _rank_list(self, values: List[float]):
         rank_values = pd.Series(values)
-        rank_values = rank_values.rank(method='min')
+        rank_values = rank_values.rank(method='max')
         return [rank_values[i] for i in range(len(values))]
 
     def save_as_img(self, filename: str) -> None:

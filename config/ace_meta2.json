@@ -18,10 +18,10 @@
     "meta_steps": 1000,
     "out_dim": 1024,
     "n": 10,
-    "k": 8,
+    "k": 5,
     "fast_steps": 5,
     "num_task": 32,
-    "meta_roles": [1, 6, 8, 9, 15, 10, 23, 27, 28, 33],
-    "filter_roles": [25, 35],
+    "meta_roles": [10, 13, 18, 21, 23, 25, 26, 27, 28, 29],
+    "filter_roles": [35],
     "gpu": 0
 }

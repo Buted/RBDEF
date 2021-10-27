@@ -10,7 +10,6 @@ from code.models.classifier import SelectorClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
 from code.metrics.binary_f1 import BinaryMetric
-from code.metrics.pr_curve import BinaryPRCurve
 
 
 class Selector(Model):
@@ -21,12 +20,11 @@ class Selector(Model):
         self.encoder = Encoder(hyper)
         self.encoder.load()
 
-        self.classifier = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.classifier = SelectorClassifier(self.encoder.embed_dim)
 
         self.loss = nn.BCEWithLogitsLoss()
 
         self.metric = BinaryMetric()
-        self.curve = BinaryPRCurve()
         self.get_metric = self.metric.get_metric
         self.to(self.gpu)
 
@@ -47,7 +45,6 @@ class Selector(Model):
         else:
             self._update_metric(logits, labels)
             output["probability"] = torch.sigmoid(logits)
-            self.curve.update(golden_labels=labels.cpu(), predict_labels=output["probability"].cpu())
             
         return output
 

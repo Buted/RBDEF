@@ -20,11 +20,16 @@ class MainClassifier(Classifier):
         super(MainClassifier, self).__init__(embed_dim, class_num)
 
 
-class SelectorClassifier(Module):
+class SelectorClassifier(Classifier):
+    def __init__(self, embed_dim: int):
+        super(SelectorClassifier, self).__init__(embed_dim, 1)
+
+
+class MetaClassifier(Module):
     def __init__(self, embed_dim: int, out_dim: int):
-        super(SelectorClassifier, self).__init__()
+        super(MetaClassifier, self).__init__()
         self.gate = ScalableGate(embed_dim, out_dim)
-        self.classifier = nn.Linear(out_dim, 1)
+        self.classifier = nn.Linear(out_dim, 10 )
     
     def forward(self, *args):
         h = self.gate(*args)

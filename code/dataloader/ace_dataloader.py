@@ -47,8 +47,6 @@ class ACE_Dataset(Dataset):
         sample_num = 0
         for sample in JsonHandler.read_json(os.path.join(hyper.data_root, dataset)):
             sample_num += 1
-            # if sample_num > 100:
-            #     break
 
             tokens, wid2tid = self._tokenize(hyper.tokenizer, sample["words"])
 
