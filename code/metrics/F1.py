@@ -45,7 +45,7 @@ class F1:
             y_true=self.golden, y_pred=self.predict, 
             labels=self.valid_labels, 
             digits=4, output_dict=True, zero_division=0
-        )["micro avg"]
+        )["macro avg"]
         
         return {
             'precision': report["precision"],

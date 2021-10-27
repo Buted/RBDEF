@@ -277,7 +277,7 @@ class Runner:
                 ]
             )
 
-        F1_log = format_report('micro', F1_report[0])
+        F1_log = format_report('macro', F1_report[0])
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
