@@ -12,6 +12,8 @@
     "batch_size_train": 24,
     "batch_size_eval": 100,
     "epoch_num": 50,
-    "lr": 0.001,
+    "lr": 0.005,
+    "seed": 42,
+    "select_roles": [8, 6, 9, 15, 2],
     "gpu": 0
 }

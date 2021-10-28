@@ -5,15 +5,17 @@ import argparse
 import torch
 
 import numpy as np
+import learn2learn as l2l
 
 from tqdm import tqdm
 from typing import Tuple
+from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
-from code.preprocess import ACE_Preprocessor, merge_dataset
-from code.dataloader import ACE_Dataset, ACE_loader
-from code.models import AEModel, Selector
+from code.preprocess import ACE_Preprocessor, merge_dataset, MetaInfo
+from code.dataloader import *
+from code.models import AEModel, MetaAEModel, FusedAEModel
 from code.statistic import CoOccurStatistic, Ranker
 
 
@@ -42,6 +44,13 @@ parser.add_argument(
     default="evaluate",
     help="train|evaluate for indicator mode"
 )
+parser.add_argument(
+    "--load",
+    "-l",
+    type=bool,
+    default=False,
+    help="whether or not load modules for training"
+)
 args = parser.parse_args()
 
 BackgroundGenerator = lambda x: x
@@ -66,7 +75,15 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._init_optimizer()
+            if kwargs["load"]:
+                self.model.load()
             self.train()
+        elif mode == 'evaluate':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self.load_model("best")
+            self._evaluate()
         elif mode == 'merge':
             merge_dataset(self.hyper)
         elif mode == 'statistic':
@@ -85,8 +102,86 @@ class Runner:
         elif mode == 'rank':
             self.hyper.vocab_init()
             self._rank(kwargs["sub_mode"])
+        elif mode == 'meta':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._init_optimizer()
+            self._meta_train()
+        elif mode == 'build':
+            self.hyper.vocab_init()
+            self._build_meta_info()
         else:
             raise ValueError("Invalid mode!")
+
+    def _build_meta_info(self):
+        meta_info = MetaInfo(self.hyper, self.hyper.train)
+        meta_info.save(self.hyper)
+
+    def _meta_train(self):
+        meta_model = l2l.algorithms.MAML(self.model.classifier, self.hyper.lr, allow_nograd=True)
+
+        # load data
+        self.model.train()
+        self.model.encoder.eval()
+        train_dataloader_generator = self._get_meta_dataset(
+            self.hyper.train, 
+            n=5, k=2, 
+            num_tasks=self.hyper.meta_steps
+        )
+        # dev_dataloader_generator = self._get_meta_dataset(self.hyper.dev, self.hyper.dev_filter_relations, n=12, k=2)
+        logging.info("Meta training start.")
+        for epoch in range(self.hyper.meta_steps):
+            self.optimizer.zero_grad()
+            cloned_model = meta_model.clone()
+            support_dataloader, query_dataloader = next(train_dataloader_generator)
+            for sample in support_dataloader:
+                output = self.model.meta_forward(sample, cloned_model, is_train=True)
+                cloned_model.adapt(output["loss"])
+            
+            for sample in query_dataloader:
+                output = self.model.meta_forward(sample, cloned_model, is_train=True)
+                loss = output["loss"]
+                
+            if np.isnan(loss.item()):
+                logging.info("At step %d:Loss becomes nan, stopping traning." % epoch)
+                break
+
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
+            self.optimizer.step()
+            logging.info("Step: %d, loss: %.4f" % (epoch, loss.item()))
+
+        self.save_model("meta")
+        logging.info("Meta training done.")
+
+    def _get_meta_dataset(self, dataset_name: str, n: int=5, k: int=2, num_tasks: int=1100):
+        logging.info("Load Meta Trainset.")
+        dataset = Meta_Dataset(self.hyper, dataset_name)
+        dataset = l2l.data.MetaDataset(dataset, indices_to_labels=dataset.indices2labels)
+        tasks = l2l.data.TaskDataset(dataset,
+            task_transforms=[
+                l2l.data.transforms.FusedNWaysKShots(dataset, n=n, k=k*2),
+            ],
+            num_tasks=num_tasks
+        )
+        loader = lambda idx: self.Loader(
+                FewShot_Dataset(dataset, idx),
+                batch_size=n*k,
+                pin_memory=True,
+                num_workers=8
+            )
+        for _ in range(num_tasks):
+            task = tasks.sample()
+            support_indices = np.zeros(task.shape[0], dtype=bool)
+            support_indices[np.arange(n*k) * 2] = True
+            query_indices = torch.from_numpy(~support_indices)
+            support_indices = torch.from_numpy(support_indices)
+            support_indices = task[support_indices]
+            query_indices = task[query_indices]
+            support_loader = loader(support_indices)
+            query_loader = loader(query_indices)
+            yield (support_loader, query_loader)
 
     def _init_logger(self, mode, **kwargs):
         log_filename = mode if len(kwargs) == 0 else "-".join([mode] + [str(val) for val in kwargs.values()])
@@ -101,25 +196,52 @@ class Runner:
         )
 
     def _init_loader(self):
-        self.Dataset = ACE_Dataset
+        dataset = {
+            "Main model": ACE_Dataset,
+            "Meta": Meta_Dataset,
+            "Fuse": ACE_Dataset,
+            "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
+            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
+        }
+        self.Dataset = dataset[self.hyper.model]
         self.Loader = ACE_loader
 
     def _init_model(self):
         logging.info(self.hyper.model)
         model_dict = {
             "Main model": AEModel,
-            "Selector": Selector
+            "Meta": MetaAEModel,
+            "Fuse": FusedAEModel,
+            "FewRole": MetaAEModel,
+            "FewRoleWithOther": MetaAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        bert_params = list(map(id, self.model.encoder.encoder.parameters()))
-        scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
-        params_with_lr = [
-            {'params': self.model.encoder.encoder.parameters(), 'lr': 1e-5},
-            {'params': scratch_params, 'lr': self.hyper.lr}
-        ]
-        m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=0.5)}
+        if self.hyper.model == "Main model":
+            bert_params = list(map(id, self.model.encoder.encoder.parameters()))
+            scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
+            params_with_lr = [
+                {'params': self.model.encoder.encoder.parameters(), 'lr': 1e-5},
+                {'params': scratch_params, 'lr': self.hyper.lr}
+            ]
+        elif self.hyper.model == "Fuse":
+            scratch_params = list(map(id, self.model.meta_classifier.parameters()))
+            # scratch_params.append(id(self.model.alpha))
+            main_params = filter(lambda p: id (p) not in scratch_params, self.model.parameters())
+            params_with_lr = [
+                {'params': main_params, 'lr': 1e-5},
+                {'params': self.model.meta_classifier.parameters(), 'lr': self.hyper.lr},
+                # {'params': self.model.alpha, 'lr': self.hyper.lr}
+            ]
+            # params_with_lr = [
+            #     {'params': self.model.meta_classifier.parameters(), 'lr': self.hyper.lr}
+            # ]
+        else:
+            params_with_lr = [
+                {'params': self.model.classifier.parameters(), 'lr': self.hyper.lr}
+            ]
+        m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=self.hyper.lr)}
         self.optimizer = m[self.hyper.optimizer]
 
     def train(self):
@@ -140,8 +262,7 @@ class Runner:
         logging.info("best epoch: %d \t F1 = %.2f" % (best_epoch, score))
         logging.info("Evaluate on testset:")
         self.load_model("best")
-        _, log = self.evaluation(test_loader)
-        logging.info(log)
+        self._evaluate(test_loader)
 
     def _train_one_epoch(self, train_loader, epoch):
         batch_num = len(train_loader)
@@ -151,7 +272,9 @@ class Runner:
                 total=len(train_loader)
             )
         loss = 0
-        for _, sample in pbar:
+        for i, sample in pbar:
+            # if i > 1:
+            #     exit(0)
             self.optimizer.zero_grad()
 
             output = self.model(sample, is_train=True)
@@ -168,7 +291,7 @@ class Runner:
 
     def _load_datasets(self):
         logging.info("Load dataset.")
-        train_loader = self._get_loader(self.hyper.train, self.hyper.batch_size_train, 8)
+        train_loader = self._get_train_loader(self.hyper.train, self.hyper.batch_size_train, 8)
         logging.info('Load trainset done.')
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info('Load devset done.')
@@ -176,6 +299,16 @@ class Runner:
         logging.info('Load testset done.')
         return train_loader,dev_loader,test_loader
 
+    def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
+        train_set = self.Dataset(self.hyper, dataset)
+        sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model == "FewRoleWithOther" else None
+        return self.Loader(
+            train_set,
+            sampler=sampler,
+            batch_size=batch_size,
+            pin_memory=True,
+            num_workers=num_workers
+        )
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)
         return self.Loader(
@@ -184,6 +317,22 @@ class Runner:
             pin_memory=True,
             num_workers=num_workers
         )
+
+    def _evaluate(self, test_loader=None):
+        if test_loader is None:
+            test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
+            logging.info('Load testset done.')
+
+        self.evaluation(test_loader)
+
+        F1_report = self.model.metric.report_all()
+        format_report = self.report_format()
+
+        F1_log = format_report('avg', F1_report[0])
+        for i in range(1, len(F1_report)):
+            F1_log += '\n' + format_report(i, F1_report[i])
+        logging.info(F1_log)
+
 
     def evaluation(self, loader) -> Tuple[float, str]:
         self.model.reset()
@@ -270,14 +419,9 @@ class Runner:
             
         F1_report, role_indicator, NonRole_indicator = self.model.report()
 
-        format_report = lambda result_class, result: "%-6s" % str(result_class) + ", ".join(
-                [
-                    "%s: %.4f" % (name, value)
-                    for name, value in result.items()
-                ]
-            )
+        format_report = self.report_format()
 
-        F1_log = format_report('macro', F1_report[0])
+        F1_log = format_report('micro', F1_report[0])
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
@@ -286,6 +430,17 @@ class Runner:
         for i in range(len(role_indicator)):
             role_log += '\n' + format_report(i, role_indicator[i])
         logging.info(role_log)
+
+    @staticmethod
+    def report_format():
+        format_report = lambda result_class, result: "%-6s" % str(result_class) + ", ".join(
+                [
+                    "%s: %.4f" % (name, value)
+                    for name, value in result.items()
+                ]
+            )
+            
+        return format_report
 
         # NonRole_log = 'Only NonRole:\n' + format_report('NonRole', NonRole_indicator[0])
         # logging.info(NonRole_log)
@@ -319,4 +474,4 @@ class Runner:
 
 if __name__ == '__main__':
     runner = Runner(exp_name=args.exp_name)
-    runner.run(mode=args.mode, sub_mode=args.sub_mode)
+    runner.run(mode=args.mode, sub_mode=args.sub_mode, load=args.load)

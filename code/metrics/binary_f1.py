@@ -26,13 +26,14 @@ class BinaryMetric:
         self.predicts.extend(predict_labels)
         self.goldens.extend(golden_labels)
     
-    def report(self):
-        precison, recall, f1_score, support =  precision_recall_fscore_support(y_pred=self.predicts, y_true=self.goldens, labels=[1])
+    def get_metric(self):
+        precision, recall, f1_score, support = precision_recall_fscore_support(y_pred=self.predicts, y_true=self.goldens, pos_label=1, average='binary')
+        # print(precision, recall, f1_score, support)
         return {
-            'precision': precison[0],
-            'recall': recall[0], 
-            'f1_score': f1_score[0],
-            'support': support[0]
+            'precision': precision,
+            'recall': recall, 
+            'fscore': f1_score,
+            # 'support': support
         }
 
     def reset(self):

@@ -27,7 +27,7 @@ class AEModel(Model):
 
         self.metric = F1(hyper)
         self.get_metric = self.metric.report
-        self.role_indicator = Indicator(hyper)
+        self.role_indicator = Indicator(hyper) if hasattr(hyper, 'co_oocur_matrix') else None
         # self.NonRole_indicator = Indicator(hyper, {0: [1, 0], 1: [0, 1]})
 
         self.to(hyper.gpu)

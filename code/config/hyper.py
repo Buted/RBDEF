@@ -32,9 +32,19 @@ class Hyper(object):
         self.batch_size_eval: int
         self.epoch_num: int
         self.lr: float
+        self.meta_roles: List[int]
 
         # statistic
         self.statistic: str
+
+        # meta
+        self.meta_steps: int
+        self.out_dim: int
+        self.n: int
+        self.k: int
+        self.fast_steps: int
+        self.num_task: int
+        self.meta_lr: float
     
         self.__dict__ = json.load(open(path, 'r'))
     

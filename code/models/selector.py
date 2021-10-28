@@ -8,12 +8,14 @@ from functools import partial
 from code.config import Hyper
 from code.models.classifier import SelectorClassifier
 from code.models.encoder import Encoder
+from code.models.model import Model
 from code.metrics.binary_f1 import BinaryMetric
 
 
-class Selector(nn.Module):
+class Selector(Model):
     def __init__(self, hyper: Hyper):
         super(Selector, self).__init__()
+        self.gpu = hyper.gpu
         self.threshold = 0.5
         self.encoder = Encoder(hyper)
         self.encoder.load()
@@ -23,15 +25,18 @@ class Selector(nn.Module):
         self.loss = nn.BCEWithLogitsLoss()
 
         self.metric = BinaryMetric()
+        self.get_metric = self.metric.get_metric
+        self.to(self.gpu)
 
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
-        labels = sample.label.cuda(self.gpu)
+        labels = sample.label.cuda(self.gpu).float()
 
         entity_encoding, trigger_encoding = self.encoder(sample, is_train)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = self.classifier(entity_encoding, trigger_encoding)
+        logits = logits.squeeze()
 
         output['loss'] = self.loss(logits, target=labels)
         
@@ -39,7 +44,7 @@ class Selector(nn.Module):
             output["description"] = partial(self.description, output=output)
         else:
             self._update_metric(logits, labels)
-            output["probability"] = torch.softmax(logits, dim=-1)
+            output["probability"] = torch.sigmoid(logits)
             
         return output
 
