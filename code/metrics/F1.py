@@ -45,7 +45,7 @@ class F1:
             y_true=self.golden, y_pred=self.predict, 
             labels=self.valid_labels, 
             digits=4, output_dict=True, zero_division=0
-        )["micro avg"]
+        )["macro avg"]
         
         return {
             'precision': report["precision"],
@@ -61,7 +61,7 @@ class F1:
             digits=4, output_dict=True, zero_division=0
         )
         
-        output_keys = ['micro avg'] + [str(i) for i in self.valid_labels]
+        output_keys = ['macro avg'] + [str(i) for i in self.valid_labels]
         
         return [
             {

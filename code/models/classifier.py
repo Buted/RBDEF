@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from code.models.gate import Gate, ScalableGate
+from code.models.gate import Gate
 from code.models.module import Module
 
 
@@ -23,14 +23,3 @@ class MainClassifier(Classifier):
 class SelectorClassifier(Classifier):
     def __init__(self, embed_dim: int):
         super(SelectorClassifier, self).__init__(embed_dim, 1)
-
-
-class MetaClassifier(Module):
-    def __init__(self, embed_dim: int, out_dim: int):
-        super(MetaClassifier, self).__init__()
-        self.gate = ScalableGate(embed_dim, out_dim)
-        self.classifier = nn.Linear(out_dim, 10 )
-    
-    def forward(self, *args):
-        h = self.gate(*args)
-        return self.classifier(h)

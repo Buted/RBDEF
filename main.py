@@ -2,21 +2,18 @@ import os
 import logging
 # import warnings
 import argparse
-from re import S
 import torch
 
 import numpy as np
-import learn2learn as l2l
 
 from tqdm import tqdm
 from typing import Tuple
-from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
 from code.preprocess import ACE_Preprocessor, merge_dataset
-from code.dataloader import *
-from code.models import AEModel, MetaAEModel
+from code.dataloader import ACE_Dataset, ACE_loader
+from code.models import AEModel, Selector
 from code.statistic import CoOccurStatistic, Ranker
 
 
@@ -88,100 +85,8 @@ class Runner:
         elif mode == 'rank':
             self.hyper.vocab_init()
             self._rank(kwargs["sub_mode"])
-        elif mode == 'meta':
-            self.hyper.vocab_init()
-            self._init_loader()
-            self._init_model()
-            self._init_optimizer()
-            self._meta_train()
-        elif mode == 'save':
-            self.hyper.vocab_init()
-            self._init_model()
-            self.load_model("meta")
-            self.model.classifier.save()
         else:
             raise ValueError("Invalid mode!")
-
-    def _meta_train(self):
-        meta_model = l2l.algorithms.MAML(self.model.classifier, self.hyper.meta_lr, allow_nograd=True)
-        torch.optim.lr_scheduler.StepLR(self.optimizer, 200, gamma=0.7, last_epoch=-1)
-
-        # load data
-        self.model.train()
-        self.model.encoder.eval()
-        train_dataloader_generator = self._get_meta_dataset(
-            self.hyper.train, 
-            n=self.hyper.n, k=self.hyper.k, 
-            num_tasks=self.hyper.meta_steps*self.hyper.num_task
-        )
-        sampler = lambda dataset: iter(self.Loader(
-                dataset,
-                batch_size=self.hyper.n*self.hyper.k,
-                pin_memory=False,
-                shuffle=True
-            )).next()
-        # dev_dataloader_generator = self._get_meta_dataset(self.hyper.dev, self.hyper.dev_filter_relations, n=12, k=2)
-        logging.info("Meta training start.")
-        for epoch in range(self.hyper.meta_steps):
-            self.optimizer.zero_grad()
-            loss = 0
-            for _ in range(self.hyper.num_task):
-                cloned_model = meta_model.clone()
-                support_dataset, query_dataset = next(train_dataloader_generator)
-                for _ in range(self.hyper.fast_steps):
-                    sample = sampler(support_dataset)
-                    output = self.model.meta_forward(sample, cloned_model, is_train=True)
-                    cloned_model.adapt(output["loss"])
-                
-                sample = sampler(query_dataset)
-                output = self.model.meta_forward(sample, cloned_model, is_train=True)
-                loss += output["loss"]
-                
-            if np.isnan(loss.item()):
-                logging.info("At step %d:Loss becomes nan, stopping traning." % epoch)
-                break
-
-            loss /= self.hyper.num_task
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
-            self.optimizer.step()
-            logging.info("Step: %d, loss: %.4f" % (epoch, loss.item()))
-
-            if (epoch + 1) % 200 == 0:
-                self.save_model(str(epoch + 1))
-
-        self.save_model("meta")
-        logging.info("Meta training done.")
-
-    def _get_meta_dataset(self, dataset_name: str, n: int=5, k: int=2, num_tasks: int=1100):
-        logging.info("Load Meta Trainset.")
-        filter_roles = list(range(self.hyper.role_vocab_size))
-        for role in self.hyper.filter_roles:
-            filter_roles.remove(role)
-        biased_dataset = BiasedSampling_Dataset(self.hyper, dataset_name)
-        # biased_dataset = Meta_Dataset(self.hyper, dataset_name)
-        dataset = l2l.data.MetaDataset(biased_dataset, indices_to_labels=biased_dataset.indices2labels)
-        # print({label: len(indices) for label, indices in dataset.labels_to_indices.items()})
-        tasks = l2l.data.TaskDataset(dataset,
-            task_transforms=[
-                l2l.data.transforms.FilterLabels(dataset, filter_roles),
-                BiasedSamplingNWays(dataset, n=n, probability=biased_dataset.probability),
-                l2l.data.transforms.KShots(dataset, k=k*2),
-                # l2l.data.transforms.FusedNWaysKShots(dataset, n=n, k=k*2, filter_labels=filter_roles)
-            ],
-            num_tasks=num_tasks
-        )
-        for _ in range(num_tasks):
-            task = tasks.sample()
-            support_indices = np.zeros(task.shape[0], dtype=bool)
-            support_indices[np.arange(n*k) * 2] = True
-            query_indices = torch.from_numpy(~support_indices)
-            support_indices = torch.from_numpy(support_indices)
-            support_indices = task[support_indices]
-            query_indices = task[query_indices]
-            support_dataset = FewShot_Dataset(dataset, support_indices)
-            query_dataset = FewShot_Dataset(dataset, query_indices, support_dataset.remap)
-            yield (support_dataset, query_dataset)
 
     def _init_logger(self, mode, **kwargs):
         log_filename = mode if len(kwargs) == 0 else "-".join([mode] + [str(val) for val in kwargs.values()])
@@ -196,34 +101,25 @@ class Runner:
         )
 
     def _init_loader(self):
-        dataset = {
-            "Main model": ACE_Dataset,
-            "Meta": Meta_Dataset
-        }
-        self.Dataset = dataset[self.hyper.model]
+        self.Dataset = ACE_Dataset
         self.Loader = ACE_loader
 
     def _init_model(self):
         logging.info(self.hyper.model)
         model_dict = {
             "Main model": AEModel,
-            "Meta": MetaAEModel
+            "Selector": Selector
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        if self.hyper.model == "Main model":
-            bert_params = list(map(id, self.model.encoder.encoder.parameters()))
-            scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
-            params_with_lr = [
-                {'params': self.model.encoder.encoder.parameters(), 'lr': 1e-5},
-                {'params': scratch_params, 'lr': self.hyper.lr}
-            ]
-        else:
-            params_with_lr = [
-                {'params': self.model.classifier.parameters(), 'lr': self.hyper.lr}
-            ]
-        m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=self.hyper.lr)}
+        bert_params = list(map(id, self.model.encoder.encoder.parameters()))
+        scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
+        params_with_lr = [
+            {'params': self.model.encoder.encoder.parameters(), 'lr': 1e-5},
+            {'params': scratch_params, 'lr': self.hyper.lr}
+        ]
+        m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=0.5)}
         self.optimizer = m[self.hyper.optimizer]
 
     def train(self):
@@ -381,7 +277,7 @@ class Runner:
                 ]
             )
 
-        F1_log = format_report('micro', F1_report[0])
+        F1_log = format_report('macro', F1_report[0])
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
