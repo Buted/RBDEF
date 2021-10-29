@@ -9,8 +9,8 @@ from code.config import Hyper
 from code.models.classifier import MetaClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
-# from code.metrics import MetaF1
-from code.metrics import F1
+from code.metrics import MetaF1
+# from code.metrics import F1
 
 
 class MetaAEModel(Model):
@@ -25,9 +25,9 @@ class MetaAEModel(Model):
 
         self.loss = nn.CrossEntropyLoss()
         
-        # self.metric = MetaF1(hyper)
-        self.metric = F1(hyper)
-        self.metric.valid_labels = list(range(1, 10))
+        self.metric = MetaF1(hyper)
+        # self.metric = F1(hyper)
+        # self.metric.valid_labels = list(range(10))
         self.get_metric = self.metric.report
 
         self.to(self.gpu)
@@ -73,5 +73,5 @@ class MetaAEModel(Model):
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
     
     def save(self):
-        # self.classifier.save()
-        return
+        self.classifier.save()
+        # return

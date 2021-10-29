@@ -13,7 +13,6 @@ from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
-from code.models.recall_ae import RecallAEModel
 from code.preprocess import ACE_Preprocessor, merge_dataset, MetaInfo
 from code.dataloader import *
 from code.models import AEModel, MetaAEModel, FusedAEModel
@@ -112,16 +111,6 @@ class Runner:
         elif mode == 'build':
             self.hyper.vocab_init()
             self._build_meta_info()
-        elif mode == 'save':
-            self.hyper.vocab_init()
-            self._init_model()
-            self.load_model("best")
-            self.model.classifier.save()
-        elif mode == 'threshold':
-            self.hyper.vocab_init()
-            self._init_loader()
-            self._init_model()
-            self._search_threshold()
         else:
             raise ValueError("Invalid mode!")
 
@@ -212,11 +201,10 @@ class Runner:
             "Meta": Meta_Dataset,
             "Fuse": ACE_Dataset,
             "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
-            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
-            "Recall": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
+            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
         }
         self.Dataset = dataset[self.hyper.model]
-        self.Loader = ACEWithOther_loader if self.hyper.model == "Recall" else ACE_loader
+        self.Loader = ACE_loader
 
     def _init_model(self):
         logging.info(self.hyper.model)
@@ -225,8 +213,7 @@ class Runner:
             "Meta": MetaAEModel,
             "Fuse": FusedAEModel,
             "FewRole": MetaAEModel,
-            "FewRoleWithOther": MetaAEModel,
-            "Recall": RecallAEModel
+            "FewRoleWithOther": MetaAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
@@ -330,17 +317,6 @@ class Runner:
             pin_memory=True,
             num_workers=num_workers
         )
-
-    def _search_threshold(self):
-        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
-        logging.info('Load testset done.')
-        threshold = 0.0
-        plus = [0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05, 0.02, 0.02, 0.01, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
-        for plus_thresold in plus:
-            threshold += plus_thresold
-            self.model.threshold = threshold
-            logging.info("Threshold: %.3f" % threshold)
-            self._evaluate(test_loader)
 
     def _evaluate(self, test_loader=None):
         if test_loader is None:
