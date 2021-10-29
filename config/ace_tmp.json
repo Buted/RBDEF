@@ -6,7 +6,7 @@
     "train": "train.json",
     "dev": "dev.json",
     "test": "test.json",
-    "model": "FewRoleWithOther",
+    "model": "Recall",
     "optimizer": "adam",
     "statistic": "all_data.json",
     "batch_size_train": 24,

@@ -67,7 +67,8 @@ class RecallAEModel(Model):
 
         main_predicts = torch.argmax(main_logits, dim=-1)
         meta_predicts = torch.argmax(meta_logits, dim=-1)
-        select_predicts = torch.gt(selector_logits, self.threshold).int()
+        select_prob = torch.sigmoid(selector_logits)
+        select_predicts = torch.gt(select_prob, self.threshold).int()
 
         predicts = torch.zeros_like(meta_predicts)
 
