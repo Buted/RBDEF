@@ -9,8 +9,6 @@ from code.config import Hyper
 from code.models.classifier import MetaClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
-# from code.metrics import MetaF1
-from code.metrics import F1
 
 
 class MetaAEModel(Model):
@@ -24,11 +22,6 @@ class MetaAEModel(Model):
         self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim)
 
         self.loss = nn.CrossEntropyLoss()
-        
-        # self.metric = MetaF1(hyper)
-        self.metric = F1(hyper)
-        self.metric.valid_labels = list(range(1, 10))
-        self.get_metric = self.metric.report
 
         self.to(self.gpu)
 
@@ -62,16 +55,9 @@ class MetaAEModel(Model):
         
         if is_train:
             output["description"] = partial(self.description, output=output)
-        else:
-            self._update_metric(logits, labels)
-            output["probability"] = torch.softmax(logits, dim=-1) 
-
+            
         return output
 
-    def _update_metric(self, logits, labels) -> None:
-        predicts = torch.argmax(logits, dim=-1)
-        self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
-    
     def save(self):
-        # self.classifier.save()
-        return
+        self.classifier.save()
+        # return

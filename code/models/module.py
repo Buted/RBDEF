@@ -21,7 +21,3 @@ class Module(nn.Module):
         self.load_state_dict(
             torch.load(os.path.join(self.model_dir, self.__class__.__name__))
         )
-
-    def freeze(self):
-        for p in self.parameters():
-            p.requires_grad = False

@@ -28,17 +28,14 @@ class Encoder(Module):
     def forward(self, sample, is_train: bool) -> Tuple:
         entity_id, event_id = sample.entity_id.cuda(self.gpu), sample.event_id.cuda(self.gpu)
         entity_embedding = self.entity_embedding(entity_id)
-        # print(entity_embedding[0])
         event_embedding = self.event_embedding(event_id)
-        # print(event_embedding[0])
 
         text_id = sample.tokens.cuda(self.gpu)
         bert_mask = torch.gt(text_id, 0).long()
         bert_mask.requires_grad = False
         segment = torch.zeros_like(bert_mask)
         bert_embedding = self.encoder.embeddings(input_ids=text_id, token_type_ids=segment)
-        # print(bert_embedding[0])
-
+        
         embedding = bert_embedding + entity_embedding + event_embedding
 
         bert_output = None

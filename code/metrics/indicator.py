@@ -38,7 +38,7 @@ class Indicator:
         return [
             {
                 "golden": self.role2golden_prob[role],
-                "unrelated": self.role2unrelated_prob[role],
+                "unrelated": self.role2unrelated_prob[role] * 100000,
                 "indicator": self.role2inditator[role]
             }
             for role in self.role2inditator

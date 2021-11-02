@@ -31,7 +31,7 @@ class Ranker(object):
         self.f1_matcher = \
             r'^(\d+).*precision: (\d\.\d{4}), recall: (\d\.\d{4}), fscore: (\d\.\d{4})'
         self.indicator_matcher = \
-            r'^(\d+).*golden: (\d\.\d{4}), unrelated: (\d\.\d{4}), indicator: (\d\.\d{4})'
+            r'^(\d+).*golden: (\d\.\d+), unrelated: (\d+\.\d+), indicator: (\d\.\d+)'
     
     def match_file(self, filename: str) -> None:
         for line in self.read_file(filename):
@@ -86,13 +86,15 @@ class Ranker(object):
 
         indicators = [(rank['golden'][i] + rank['unrelated'][i]) / 2 
             for i in range(len(self.role_ids))]
+        indicators = self._rank_list(indicators)
+        indicators = [(f1 + indicator) / 2 for f1, indicator in zip(rank['f1'], indicators)]
         rank['indicator'] = self._rank_list(indicators)
 
         return rank
 
     def _rank_list(self, values: List[float]):
         rank_values = pd.Series(values)
-        rank_values = rank_values.rank(method='max')
+        rank_values = rank_values.rank(method='min')
         return [rank_values[i] for i in range(len(values))]
 
     def save_as_img(self, filename: str) -> None:
