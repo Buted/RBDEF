@@ -8,12 +8,13 @@ import numpy as np
 
 from tqdm import tqdm
 from typing import Tuple
+from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
-from code.preprocess import ACE_Preprocessor, merge_dataset
-from code.dataloader import ACE_Dataset, ACE_loader
-from code.models import AEModel, Selector
+from code.preprocess import * 
+from code.dataloader import *
+from code.models import *
 from code.statistic import CoOccurStatistic, Ranker
 
 
@@ -85,6 +86,11 @@ class Runner:
         elif mode == 'rank':
             self.hyper.vocab_init()
             self._rank(kwargs["sub_mode"])
+        elif mode == 'P-R':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._plot_pr_curve()
         else:
             raise ValueError("Invalid mode!")
 
@@ -101,8 +107,16 @@ class Runner:
         )
 
     def _init_loader(self):
-        self.Dataset = ACE_Dataset
-        self.Loader = ACE_loader
+        dataset = {
+            "Main model": ACE_Dataset,
+            "Selector": partial(Selector_Dataset, select_roles=self.hyper.select_roles)
+        }
+        loader = {
+            "Main model": ACE_loader,
+            "Selector": Selector_loader
+        }
+        self.Dataset = dataset[self.hyper.model]
+        self.Loader = loader[self.hyper.model]
 
     def _init_model(self):
         logging.info(self.hyper.model)
@@ -168,13 +182,24 @@ class Runner:
 
     def _load_datasets(self):
         logging.info("Load dataset.")
-        train_loader = self._get_loader(self.hyper.train, self.hyper.batch_size_train, 8)
+        train_loader = self._get_train_loader(self.hyper.train, self.hyper.batch_size_train, 8)
         logging.info('Load trainset done.')
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info('Load devset done.')
         test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
         return train_loader,dev_loader,test_loader
+
+    def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
+        train_set = self.Dataset(self.hyper, dataset)
+        sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model == "Selector" else None
+        return self.Loader(
+            train_set,
+            sampler=sampler,
+            batch_size=batch_size,
+            pin_memory=True,
+            num_workers=num_workers
+        )
 
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)
@@ -309,6 +334,12 @@ class Runner:
         # ranker.save_as_img(pic_filename)
         ranker.save_into_log()
     
+    def _plot_pr_curve(self):
+        self.model.load()
+        dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
+        self.evaluation(dev_loader)
+        self.model.curve.get_metric(True)
+
     def _set_seed(self):
         np.random.seed(self.hyper.seed)
         torch.manual_seed(self.hyper.seed)
