@@ -245,7 +245,7 @@ class Runner:
             "%s co-occur matrix: %s" 
             % (self.hyper.statistic, formatted_matrix)
         )
-        co_occur_matrix.save_matrix(os.path.join(self.hyper.data_root, 'co_occur_matrix.json'))
+        co_occur_matrix.save()
 
     def _train_and_evaluate_indicator(self):
         logging.info("Load dataset.")
