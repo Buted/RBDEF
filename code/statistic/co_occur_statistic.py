@@ -18,7 +18,7 @@ class CoOccurStatistic:
         for entity_type, role, event_type in self._yield_mention_info():
             role_id = self.hyper.role2id[role]
             self.entity_role_co_occur[self.hyper.entity2id[entity_type]][role_id] = 1
-            self.event_role_co_occur[self.hyper.event2id[event_type]]
+            self.event_role_co_occur[self.hyper.event2id[event_type]][role_id] = 1
 
     def _yield_mention_info(self):
         for sample in self._read_data():
