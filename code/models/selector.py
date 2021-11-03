@@ -34,7 +34,7 @@ class Selector(Model):
         output = {}
         labels = sample.label.cuda(self.gpu).float()
 
-        entity_encoding, trigger_encoding = self.encoder(sample, is_train)
+        entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = self.classifier(entity_encoding, trigger_encoding)

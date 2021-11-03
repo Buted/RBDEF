@@ -14,5 +14,7 @@
     "epoch_num": 50,
     "lr": 0.005,
     "seed": 42,
+    "metric": "macro",
+    "meta_roles": [],
     "gpu": 0
 }

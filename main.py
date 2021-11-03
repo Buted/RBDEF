@@ -91,6 +91,11 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._plot_pr_curve()
+        elif mode == 'save':
+            self.hyper.vocab_init()
+            self._init_model()
+            self.load_model('best')
+            self.model.save()
         else:
             raise ValueError("Invalid mode!")
 
@@ -109,7 +114,7 @@ class Runner:
     def _init_loader(self):
         dataset = {
             "Main model": ACE_Dataset,
-            "Selector": partial(Selector_Dataset, select_roles=self.hyper.select_roles)
+            "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
             "Main model": ACE_loader,

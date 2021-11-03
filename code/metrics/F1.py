@@ -13,6 +13,7 @@ class F1:
         labels = list(hyper.id2role.keys())
         labels.remove(hyper.role2id[NonRole])
         self.valid_labels = labels
+        self.metric = hyper.metric
 
     def reset(self) -> None:
         self.golden = []
@@ -45,7 +46,7 @@ class F1:
             y_true=self.golden, y_pred=self.predict, 
             labels=self.valid_labels, 
             digits=4, output_dict=True, zero_division=0
-        )["macro avg"]
+        )[self.metric + " avg"]
         
         return {
             'precision': report["precision"],
@@ -61,7 +62,7 @@ class F1:
             digits=4, output_dict=True, zero_division=0
         )
         
-        output_keys = ['macro avg'] + [str(i) for i in self.valid_labels]
+        output_keys = [self.metric + " avg"] + [str(i) for i in self.valid_labels]
         
         return [
             {

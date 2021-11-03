@@ -1,6 +1,6 @@
 {
     "dataset": "ACE",
-    "data_root": "data/ACE",
+    "data_root": "data/fewshot",
     "raw_data_root": "ace2005data",
     "raw_data_list": ["train.json", "dev.json", "test.json", "all_data.json"],
     "train": "train.json",
@@ -14,5 +14,7 @@
     "epoch_num": 50,
     "lr": 0.005,
     "seed": 42,
+    "metric": "micro",
+    "meta_roles": [],
     "gpu": 0
 }
