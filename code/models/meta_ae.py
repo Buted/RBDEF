@@ -19,7 +19,7 @@ class MetaAEModel(Model):
         self.encoder = Encoder(hyper)
         self.encoder.load()
 
-        self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
 
         self.loss = nn.CrossEntropyLoss()
 
@@ -30,7 +30,7 @@ class MetaAEModel(Model):
         labels = sample.label.cuda(self.gpu)
 
         with torch.no_grad():
-            entity_encoding, trigger_encoding = self.encoder(sample, is_train)
+            entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = classifier(entity_encoding, trigger_encoding)

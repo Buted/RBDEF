@@ -29,3 +29,14 @@ class SelectorClassifier(Module):
     def forward(self, *args):
         h = self.gate(*args)
         return self.classifier(h)
+
+
+class MetaClassifier(Module):
+    def __init__(self, embed_dim: int, out_dim: int, n_class: int):
+        super(MetaClassifier, self).__init__()
+        self.gate = ScalableGate(embed_dim, out_dim)
+        self.classifier = nn.Linear(out_dim, n_class)
+        
+    def forward(self, *args):
+        h = self.gate(*args)
+        return self.classifier(h)
