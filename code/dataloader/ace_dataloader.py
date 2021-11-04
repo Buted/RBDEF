@@ -37,12 +37,12 @@ class ACE_Dataset(Dataset):
             self.entity_start,
             self.entity_end,
             self.entity_type,
-            # self.event_type,
+            self.event_type,
             self.trigger_start,
             self.trigger_end,
             self.entity_id,
             self.event_id
-        ) = ([] for _ in range(9))
+        ) = ([] for _ in range(10))
 
         sample_num = 0
         for sample in JsonHandler.read_json(os.path.join(hyper.data_root, dataset)):
@@ -75,6 +75,7 @@ class ACE_Dataset(Dataset):
             self.event_id.append(event_id)
             self.trigger_start.append(trigger_start)
             self.trigger_end.append(trigger_end)
+            self.event_type.append(event_type)
         
         logging.info("The number of samples: %d" % sample_num)
 
@@ -102,7 +103,8 @@ class ACE_Dataset(Dataset):
             self.event_id[index],
             self.trigger_start[index],
             self.trigger_end[index],
-            self.entity_type[index]
+            self.entity_type[index],
+            self.event_type[index]
         )
 
     def __len__(self) -> int:
@@ -124,6 +126,7 @@ class Batch_reader(object):
         self.trigger_start = self._to_long_tensor(transposed_data[6])
         self.trigger_end = self._to_long_tensor(transposed_data[7])
         self.entity_type = self._to_long_tensor(transposed_data[8])
+        self.event_type = self._to_long_tensor(transposed_data[9])
 
     @staticmethod
     def _to_long_tensor(data: List) -> torch.LongTensor:
@@ -143,6 +146,7 @@ class Batch_reader(object):
         self.trigger_start = self.trigger_start.pin_memory()
         self.trigger_end = self.trigger_end.pin_memory()
         self.entity_type = self.entity_type.pin_memory()
+        self.event_type = self.event_type.pin_memory()
         return self
 
 

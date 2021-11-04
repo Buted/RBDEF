@@ -228,11 +228,12 @@ class Runner:
                 support_dataset, query_dataset = next(train_dataloader_generator)
                 for _ in range(self.hyper.fast_steps):
                     sample = sampler(support_dataset)
-                    output = self.model.meta_forward(sample, cloned_model, is_train=True)
+                    output = self.model.meta_forward(sample, cloned_model, support_dataset.remap, is_train=True)
                     cloned_model.adapt(output["loss"])
+                    # logging.info("loss: %.4f" % output["loss"].item())
                 
                 sample = sampler(query_dataset)
-                output = self.model.meta_forward(sample, cloned_model, is_train=True)
+                output = self.model.meta_forward(sample, cloned_model, query_dataset.remap, is_train=True)
                 loss += output["loss"]
                 
             if np.isnan(loss.item()):

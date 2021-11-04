@@ -1,7 +1,5 @@
 import torch
 
-import torch.nn as nn
-
 from typing import Dict
 from functools import partial
 
@@ -9,6 +7,8 @@ from code.config import Hyper
 from code.models.classifier import MetaClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
+from code.loss.soft_cross_entropy import SoftCrossEntropyLoss
+from code.loss.mask_handler import MaskHandler
 
 
 class MetaAEModel(Model):
@@ -21,15 +21,18 @@ class MetaAEModel(Model):
 
         self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
 
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = SoftCrossEntropyLoss()
+
+        self.mask_handler = MaskHandler(hyper)
 
         self.to(self.gpu)
 
-    def meta_forward(self, sample, classifier, is_train: bool=False) -> Dict:
+    def meta_forward(self, sample, classifier, remap: Dict[int, int], is_train: bool=False) -> Dict:
         output = {}
-        labels = sample.label.cuda(self.gpu)
+        # labels = sample.label.cuda(self.gpu)
 
         with torch.no_grad():
+            labels = self.mask_handler.generate_soft_label(sample, remap)
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
