@@ -1,5 +1,7 @@
 import torch
 
+import torch.nn as nn
+
 from typing import Dict
 from functools import partial
 
@@ -7,8 +9,8 @@ from code.config import Hyper
 from code.models.classifier import MetaClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
-from code.loss.soft_cross_entropy import SoftCrossEntropyLoss
-from code.loss.mask_handler import MaskHandler
+from code.loss import SoftCrossEntropyLoss, MaskHandler
+from code.metrics import MetaF1
 
 
 class MetaAEModel(Model):
@@ -21,9 +23,16 @@ class MetaAEModel(Model):
 
         self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
 
-        self.loss = SoftCrossEntropyLoss()
+        self.soft_loss = SoftCrossEntropyLoss()
+        self.loss = nn.CrossEntropyLoss()
 
         self.mask_handler = MaskHandler(hyper)
+
+        self.metric = MetaF1(hyper)
+        self.get_metric = self.metric.report
+
+        self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
+        self.soft = True
 
         self.to(self.gpu)
 
@@ -38,7 +47,7 @@ class MetaAEModel(Model):
 
         logits = classifier(entity_encoding, trigger_encoding)
 
-        output['loss'] = self.loss(logits, target=labels)
+        output['loss'] = self.soft_loss(logits, target=labels)
         
         if is_train:
             output["description"] = partial(self.description, output=output)
@@ -49,18 +58,28 @@ class MetaAEModel(Model):
         output = {}
         labels = sample.label.cuda(self.gpu)
 
-        entity_encoding, trigger_encoding = self.encoder(sample, is_train)
+        with torch.no_grad():
+            if self.soft:
+                soft_labels = self.mask_handler.generate_soft_label(sample, self.remap)
+            entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = self.classifier(entity_encoding, trigger_encoding)
 
-        output['loss'] = self.loss(logits, target=labels)
+        output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)
         
         if is_train:
             output["description"] = partial(self.description, output=output)
-            
+        else:
+            self._update_metric(logits, labels)
+            output["probability"] = torch.softmax(logits, dim=-1) 
+
         return output
 
+    def _update_metric(self, logits, labels) -> None:
+        predicts = torch.argmax(logits, dim=-1)
+        self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
+ 
     def save(self):
         self.classifier.save()
         # return

@@ -44,6 +44,13 @@ parser.add_argument(
     default="evaluate",
     help="train|evaluate for indicator mode"
 )
+parser.add_argument(
+    "--load",
+    "-l",
+    type=bool,
+    default=False,
+    help="whether or not load modules for training"
+)
 args = parser.parse_args()
 
 BackgroundGenerator = lambda x: x
@@ -68,6 +75,8 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._init_optimizer()
+            if kwargs["load"]:
+                self.model.load()
             self.train()
         elif mode == 'meta':
             self.hyper.vocab_init()
@@ -75,6 +84,12 @@ class Runner:
             self._init_model()
             self._init_optimizer()
             self._meta_train()
+        elif mode == 'evaluate':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self.load_model("best")
+            self._evaluate()
         elif mode == 'merge':
             merge_dataset(self.hyper)
         elif mode == 'statistic':
@@ -122,12 +137,14 @@ class Runner:
         dataset = {
             "Main model": ACE_Dataset,
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
-            "Meta": Meta_Dataset
+            "Meta": Meta_Dataset,
+            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
             "Main model": ACE_loader,
             "Selector": Selector_loader,
-            "Meta": ACE_loader
+            "Meta": ACE_loader,
+            "FewRoleWithOther": ACE_loader
         }
         self.Dataset = dataset[self.hyper.model]
         self.Loader = loader[self.hyper.model]
@@ -137,7 +154,8 @@ class Runner:
         model_dict = {
             "Main model": AEModel,
             "Selector": Selector,
-            "Meta": MetaAEModel
+            "Meta": MetaAEModel,
+            "FewRoleWithOther": MetaAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
@@ -174,8 +192,7 @@ class Runner:
         logging.info("best epoch: %d \t F1 = %.2f" % (best_epoch, score))
         logging.info("Evaluate on testset:")
         self.load_model("best")
-        _, log = self.evaluation(test_loader)
-        logging.info(log)
+        self._evaluate(test_loader)
 
     def _train_one_epoch(self, train_loader, epoch):
         batch_num = len(train_loader)
@@ -294,7 +311,7 @@ class Runner:
 
     def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
         train_set = self.Dataset(self.hyper, dataset)
-        sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model == "Selector" else None
+        sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model in ["Selector", "FewRoleWithOther"] else None
         return self.Loader(
             train_set,
             sampler=sampler,
@@ -311,6 +328,21 @@ class Runner:
             pin_memory=True,
             num_workers=num_workers
         )
+
+    def _evaluate(self, test_loader=None):
+        if test_loader is None:
+            test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
+            logging.info('Load testset done.')
+
+        self.evaluation(test_loader)
+
+        F1_report = self.model.metric.report_all()
+        format_report = self.report_format()
+
+        F1_log = format_report('avg', F1_report[0])
+        for i in range(1, len(F1_report)):
+            F1_log += '\n' + format_report(i, F1_report[i])
+        logging.info(F1_log)
 
     def evaluation(self, loader) -> Tuple[float, str]:
         self.model.reset()
@@ -397,14 +429,9 @@ class Runner:
             
         F1_report, role_indicator, NonRole_indicator = self.model.report()
 
-        format_report = lambda result_class, result: "%-6s" % str(result_class) + ", ".join(
-                [
-                    "%s: %.4f" % (name, value)
-                    for name, value in result.items()
-                ]
-            )
+        format_report = self.report_format()
 
-        F1_log = format_report('macro', F1_report[0])
+        F1_log = format_report(self.hyper.metric, F1_report[0])
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
@@ -414,8 +441,16 @@ class Runner:
             role_log += '\n' + format_report(i, role_indicator[i])
         logging.info(role_log)
 
-        # NonRole_log = 'Only NonRole:\n' + format_report('NonRole', NonRole_indicator[0])
-        # logging.info(NonRole_log)
+    @staticmethod
+    def report_format():
+        format_report = lambda result_class, result: "%-6s" % str(result_class) + ", ".join(
+                [
+                    "%s: %.4f" % (name, value)
+                    for name, value in result.items()
+                ]
+            )
+            
+        return format_report
     
     def _evaluate_indicator(self) -> None:
         self.load_model("best")
@@ -452,4 +487,4 @@ class Runner:
 
 if __name__ == '__main__':
     runner = Runner(exp_name=args.exp_name)
-    runner.run(mode=args.mode, sub_mode=args.sub_mode)
+    runner.run(mode=args.mode, sub_mode=args.sub_mode, load=args.load)
