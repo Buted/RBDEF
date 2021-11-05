@@ -24,7 +24,7 @@ class RecallAEModel(Model):
         
         self.encoder = Encoder(hyper)
         self.main_classifier = MainClassifier(self.encoder.embed_dim, hyper.role_vocab_size)
-        self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
         self.selector = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
         self.load()
 

@@ -25,6 +25,15 @@ class FewRoleWithOther_Dataset(ACE_Dataset):
         return role_remap
 
 
+class Recall_Dataset(FewRoleWithOther_Dataset):
+    def _remap_labels(self, select_roles: List[int]):
+        role_remap = self._build_role_remap(select_roles)
+        
+        self.meta_label = [role_remap[r] for r in self.label]
+
+    def __getitem__(self, index: int):
+        return (*super(Recall_Dataset, self).__getitem__(index), self.meta_label[index])
+
 class WeightedRoleSampler:
     def __init__(self, dataset):
         weights = self._compute_weights(dataset)
@@ -37,3 +46,23 @@ class WeightedRoleSampler:
         # print(label2weight)
         # exit(0)
         return [label2weight[label] for label in labels]
+
+
+class BatchWithMeta_reader(Batch_reader):
+    def __init__(self, data):
+        super(BatchWithMeta_reader, self).__init__(data)
+
+        transposed_data = [list(d) for d in zip(*data)]
+        self.meta_label = self._to_long_tensor(transposed_data[-1])
+    
+    def pin_memory(self):
+        super(BatchWithMeta_reader, self).pin_memory()
+        self.meta_label = self.meta_label.pin_memory()
+        return self
+
+
+def collate_fn(batch) -> Batch_reader:
+    return BatchWithMeta_reader(batch)
+
+
+ACEWithMeta_loader = partial(DataLoader, collate_fn=collate_fn, pin_memory=False)

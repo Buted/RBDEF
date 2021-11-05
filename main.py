@@ -116,8 +116,13 @@ class Runner:
         elif mode == 'save':
             self.hyper.vocab_init()
             self._init_model()
-            self.load_model('best')
+            self.load_model('meta')
             self.model.save()
+        elif mode == 'threshold':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._search_threshold()
         else:
             raise ValueError("Invalid mode!")
 
@@ -138,13 +143,15 @@ class Runner:
             "Main model": ACE_Dataset,
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
             "Meta": Meta_Dataset,
-            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
+            "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
+            "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
             "Main model": ACE_loader,
             "Selector": Selector_loader,
             "Meta": ACE_loader,
-            "FewRoleWithOther": ACE_loader
+            "FewRoleWithOther": ACE_loader,
+            "Recall": ACEWithMeta_loader
         }
         self.Dataset = dataset[self.hyper.model]
         self.Loader = loader[self.hyper.model]
@@ -155,7 +162,8 @@ class Runner:
             "Main model": AEModel,
             "Selector": Selector,
             "Meta": MetaAEModel,
-            "FewRoleWithOther": MetaAEModel
+            "FewRoleWithOther": MetaAEModel,
+            "Recall": RecallAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
@@ -328,6 +336,17 @@ class Runner:
             pin_memory=True,
             num_workers=num_workers
         )
+
+    def _search_threshold(self):
+        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
+        logging.info('Load testset done.')
+        threshold = 0.0
+        plus = [0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05, 0.02, 0.02, 0.01, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
+        for plus_thresold in plus:
+            threshold += plus_thresold
+            self.model.threshold = threshold
+            logging.info("Threshold: %.3f" % threshold)
+            self._evaluate(test_loader)
 
     def _evaluate(self, test_loader=None):
         if test_loader is None:
