@@ -32,22 +32,23 @@ class MetaAEModel(Model):
         self.get_metric = self.metric.report
 
         self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
-        self.soft = True
+        self.soft = False
 
         self.to(self.gpu)
 
     def meta_forward(self, sample, classifier, remap: Dict[int, int], is_train: bool=False) -> Dict:
         output = {}
-        # labels = sample.label.cuda(self.gpu)
+        labels = sample.label.cuda(self.gpu)
 
         with torch.no_grad():
-            labels = self.mask_handler.generate_soft_label(sample, remap)
+            if self.soft:
+                labels = self.mask_handler.generate_soft_label(sample, remap)
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = classifier(entity_encoding, trigger_encoding)
 
-        output['loss'] = self.soft_loss(logits, target=labels)
+        output['loss'] = self.soft_loss(logits, target=labels) if self.soft else self.loss(logits, target=labels)
         
         if is_train:
             output["description"] = partial(self.description, output=output)

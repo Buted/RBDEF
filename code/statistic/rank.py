@@ -86,8 +86,9 @@ class Ranker(object):
 
         indicators = [(rank['golden'][i] + rank['unrelated'][i]) / 2 
             for i in range(len(self.role_ids))]
+        # indicators = [rank['unrelated'][i] for i in range(len(self.role_ids))]
         indicators = self._rank_list(indicators)
-        indicators = [(f1 + indicator) / 2 for f1, indicator in zip(rank['f1'], indicators)]
+        indicators = [(f1 + 0.5 * indicator) / 2 for f1, indicator in zip(rank['f1'], indicators)]
         rank['indicator'] = self._rank_list(indicators)
 
         return rank

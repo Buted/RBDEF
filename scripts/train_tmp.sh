@@ -2,10 +2,10 @@ exp_name="ace_tmp"
 
 # python main.py --exp_name $exp_name --mode "preprocess"
 # python main.py --exp_name $exp_name --mode "merge"
-# CUDA_VISIBLE_DEVICES=1 python main.py --exp_name $exp_name --mode "train" --load True
+CUDA_VISIBLE_DEVICES=2 python main.py --exp_name $exp_name --mode "train" --load True
 # python main.py --exp_name $exp_name --mode "statistic"
-# python main.py --exp_name $exp_name --mode "indicator" --sub_mode "evaluate"
+# CUDA_VISIBLE_DEVICES=3 python main.py --exp_name $exp_name --mode "indicator" --sub_mode "evaluate"
 # python main.py --exp_name $exp_name --mode "rank" --sub_mode "evaluate"
 # python main.py --exp_name $exp_name --mode "save"
 # CUDA_VISIBLE_DEVICES=0 python main.py --exp_name $exp_name --mode "meta"
-CUDA_VISIBLE_DEVICES=1 python main.py --exp_name $exp_name --mode "threshold"
+# CUDA_VISIBLE_DEVICES=1 python main.py --exp_name $exp_name --mode "threshold"
