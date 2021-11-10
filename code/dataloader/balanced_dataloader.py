@@ -21,7 +21,8 @@ class Balanced_loader:
                 dataset,
                 batch_size=self.hyper.n*self.hyper.k,
                 pin_memory=False,
-                shuffle=True
+                shuffle=True,
+                num_workers=8,
             )).next()
         self.iter_times = 0
         self.iters_each_epoch = 1040

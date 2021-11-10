@@ -50,6 +50,7 @@ class Hyper(object):
         self.meta_roles: List[int]
         self.filter_roles: List[int]
         self.soft: float
+        self.prob: List[float]
     
         self.__dict__ = json.load(open(path, 'r'))
     
