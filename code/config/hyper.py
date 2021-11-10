@@ -49,6 +49,7 @@ class Hyper(object):
         self.meta_lr: float
         self.meta_roles: List[int]
         self.filter_roles: List[int]
+        self.soft: float
     
         self.__dict__ = json.load(open(path, 'r'))
     

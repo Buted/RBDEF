@@ -15,6 +15,7 @@ class MaskHandler:
     def __init__(self, hyper: Hyper) -> None:
         self.hyper = hyper
         self.gpu = hyper.gpu
+        self.soft = hyper.soft
 
         entity_co_occur_filename = os.path.join(hyper.data_root, 'entity_role_co_occur.json')
         self.entity_co_occur_embedding = self._init_embedding(entity_co_occur_filename, len(hyper.entity2id))
@@ -53,27 +54,20 @@ class MaskHandler:
         entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
         entity_weight = self.entity_co_occur_embedding(entity_type)
         event_weight = self.event_co_occur_embedding(event_type)
-        # logging.info(entity_weight[:5])
-        # logging.info(event_weight[:5])
         weight = entity_weight + event_weight
 
         weight *= self.meta_mask
-        # logging.info(weight[:5])
 
         weight = weight.matmul(self._gen_cur_tranform_matrix(remap))
-        # logging.info(weight[:5])
 
         meta_label = sample.label.cuda(self.gpu)
         one_hot = self.one_hot_embedding(meta_label)
         neg_one_hot = 1 - one_hot
         weight *= neg_one_hot
-        label = 0.8 * one_hot
-        # logging.info(label)
-        # logging.info(weight[:5])
+        label = (1 - self.soft) * one_hot
         weight_sum = torch.sum(weight, dim=-1)
-        label[weight_sum == 0] += 0.2 * one_hot[weight_sum == 0]
-        label[weight_sum != 0] += 0.2 * weight[weight_sum != 0] / weight_sum[weight_sum != 0].unsqueeze(-1)
-        # logging.info(label[:5])
+        label[weight_sum == 0] += self.soft * one_hot[weight_sum == 0]
+        label[weight_sum != 0] += self.soft * weight[weight_sum != 0] / weight_sum[weight_sum != 0].unsqueeze(-1)
         label = label.detach()
         return label
 

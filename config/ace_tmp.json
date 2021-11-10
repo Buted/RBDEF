@@ -1,6 +1,6 @@
 {
     "dataset": "ACE",
-    "data_root": "data/fewshot",
+    "data_root": "data/ACE",
     "raw_data_root": "ace2005data",
     "raw_data_list": ["train.json", "dev.json", "test.json", "all_data.json"],
     "train": "train.json",
@@ -21,8 +21,9 @@
     "k": 5,
     "fast_steps": 5,
     "num_task": 32,
-    "meta_roles": [1, 10, 19, 21, 23, 25, 27, 28, 29],
-    "filter_roles": [0, 35],
+    "meta_roles": [10, 19, 21, 25, 26, 27, 28, 29, 34],
+    "filter_roles": [35],
+    "soft": 0.2,
     "metric": "macro",
     "gpu": 0
 }

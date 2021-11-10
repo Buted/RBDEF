@@ -32,7 +32,7 @@ class MetaAEModel(Model):
         self.get_metric = self.metric.report
 
         self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
-        self.soft = False
+        self.soft = True
 
         self.to(self.gpu)
 
