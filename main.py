@@ -181,6 +181,7 @@ class Runner:
             ]
         m = {"adam": Adam(params_with_lr), "sgd": SGD(params_with_lr, lr=self.hyper.lr)}
         self.optimizer = m[self.hyper.optimizer]
+        # torch.optim.lr_scheduler.StepLR(self.optimizer, 1000, gamma=0.7, last_epoch=-1)
 
     def train(self):
         train_loader, dev_loader, test_loader = self._load_datasets()
@@ -196,6 +197,7 @@ class Runner:
                 score = new_score
                 best_epoch = epoch
                 self.save_model("best")
+            self._evaluate(test_loader)
 
         logging.info("best epoch: %d \t F1 = %.2f" % (best_epoch, score))
         logging.info("Evaluate on testset:")
@@ -282,7 +284,7 @@ class Runner:
         filter_roles = list(range(self.hyper.role_vocab_size))
         for role in self.hyper.filter_roles:
             filter_roles.remove(role)
-        biased_dataset = BiasedSampling_Dataset(self.hyper, dataset_name)
+        biased_dataset = AugmentedBiasedSampling_Dataset(self.hyper, dataset_name)
         # biased_dataset = Meta_Dataset(self.hyper, dataset_name)
         dataset = l2l.data.MetaDataset(biased_dataset, indices_to_labels=biased_dataset.indices2labels)
         # print({label: len(indices) for label, indices in dataset.labels_to_indices.items()})
@@ -318,7 +320,7 @@ class Runner:
         return train_loader,dev_loader,test_loader
 
     def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
-        train_set = self.Dataset(self.hyper, dataset)
+        train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
         sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model in ["Selector", "FewRoleWithOther"] else None
         return self.Loader(
             train_set,
@@ -326,7 +328,7 @@ class Runner:
             batch_size=batch_size,
             pin_memory=True,
             num_workers=num_workers
-        )
+        ) if self.hyper.model != "FewRoleWithOther" else Balanced_loader(train_set, self.hyper)
 
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)
@@ -353,7 +355,7 @@ class Runner:
             test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
             logging.info('Load testset done.')
 
-        self.evaluation(test_loader)
+        fscore, _ = self.evaluation(test_loader)
 
         F1_report = self.model.metric.report_all()
         format_report = self.report_format()
@@ -362,6 +364,7 @@ class Runner:
         for i in range(1, len(F1_report)):
             F1_log += '\n' + format_report(i, F1_report[i])
         logging.info(F1_log)
+        return fscore
 
     def evaluation(self, loader) -> Tuple[float, str]:
         self.model.reset()

@@ -4,6 +4,7 @@ from typing import List, Tuple, Dict
 from cached_property import cached_property
 from torch import Tensor
 from torch.utils.data import Dataset
+from collections import defaultdict
 
 from code.config import Hyper
 from code.dataloader.ace_dataloader import ACE_Dataset
@@ -19,6 +20,13 @@ class Meta_Dataset(ACE_Dataset):
             idx: self.label[idx] for idx in range(len(self.label))
         }
 
+    @cached_property
+    def labels2indices(self):
+        labels2indices = defaultdict(list)
+        for idx, label in enumerate(self.label):
+            labels2indices[label].append(idx)
+        return labels2indices
+
 
 class BiasedSampling_Dataset(Meta_Dataset):
     def __init__(self, hyper: Hyper, dataset: str):
@@ -31,6 +39,34 @@ class BiasedSampling_Dataset(Meta_Dataset):
         # for i in range(hyper.role_vocab_size):
         #     probability.append(2 / sampling_copies if i in hyper.meta_roles else 1 / sampling_copies)
         return probability
+
+
+class AugmentedBiasedSampling_Dataset(BiasedSampling_Dataset):
+    def __init__(self, hyper: Hyper, dataset: str):
+        super(AugmentedBiasedSampling_Dataset, self).__init__(hyper, dataset)
+        self._argument(hyper)
+    
+    def _argument(self, hyper: Hyper):
+        for idx in hyper.meta_roles:
+            if len(self.labels2indices[idx]) >= 2 * hyper.k:
+                continue
+            sample_num = len(self.labels2indices[idx])
+            for i in range(2*hyper.k - sample_num):
+                sample_idx = self.labels2indices[idx][i % sample_num]
+                self._append_sample(sample_idx)
+    
+    def _append_sample(self, idx: int):
+        append_field = lambda x, i: x.append(x[i])
+        append_field(self.tokens, idx)
+        append_field(self.label, idx)
+        append_field(self.entity_start, idx)
+        append_field(self.entity_end, idx)
+        append_field(self.entity_id, idx)
+        append_field(self.event_id, idx)
+        append_field(self.trigger_start, idx)
+        append_field(self.trigger_end, idx)
+        append_field(self.entity_type, idx)
+        append_field(self.event_type, idx)
 
 
 class AugmentedDataset(Meta_Dataset):

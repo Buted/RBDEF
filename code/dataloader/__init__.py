@@ -5,3 +5,4 @@ from code.dataloader.weighted_dataloader import *
 from code.dataloader.selector_dataloader import Selector_Dataset, Selector_loader
 from code.dataloader.meta_dataloader import *
 from code.dataloader.custom_transform import *
+from code.dataloader.balanced_dataloader import *
