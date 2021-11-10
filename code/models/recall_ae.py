@@ -42,14 +42,14 @@ class RecallAEModel(Model):
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)
-        meta_labels = sample.meta_label.cuda(self.gpu)
+        # meta_labels = sample.meta_label.cuda(self.gpu)
 
         entity_encoding, trigger_encoding = self.encoder(sample, is_train)
         main_logits = self.main_classifier(entity_encoding, trigger_encoding)
         meta_logits = self.meta_classifier(entity_encoding, trigger_encoding)
         selector_logits = self.selector(entity_encoding, trigger_encoding)
         
-        output['loss'] = self.loss(meta_logits, meta_labels)
+        # output['loss'] = self.loss(meta_logits, meta_labels)
         
         if is_train:
             output["description"] = partial(self.description, output=output)
@@ -71,6 +71,44 @@ class RecallAEModel(Model):
         select_predicts = torch.gt(select_prob, self.threshold).int()
 
         predicts = torch.zeros_like(meta_predicts)
+
+        # basing on meta branch
+        # for i, (main_p, meta_p, select_p) in enumerate(zip(main_predicts, meta_predicts, select_predicts)):
+        #     if meta_p > 0:
+        #         p = self.meta_roles[meta_p-1]
+        #     elif main_p not in self.meta_roles:
+        #         p = main_p
+        #     else:
+        #         choice_meta = select_p == 1
+        #         if choice_meta:
+        #             meta_logit = torch.softmax(meta_logits[i][1:], dim=-1)
+        #             meta_p = torch.argmax(meta_logit, dim=-1)
+        #             p = self.meta_roles[meta_p]
+        #         else:
+        #             main_logit = torch.softmax(main_logits[i], dim=-1)
+        #             main_logit = torch.softmax(main_logit * self.meta_mask, dim=-1)
+        #             p = torch.argmax(main_logit, dim=-1)
+
+        #     predicts[i] = p
+
+        # basing on main branch
+        # for i, (main_p, meta_p, select_p) in enumerate(zip(main_predicts, meta_predicts, select_predicts)):
+        #     if main_p not in self.meta_roles:
+        #         p = main_p
+        #     elif meta_p > 0:
+        #         p = self.meta_roles[meta_p-1]
+        #     else:
+        #         choice_meta = select_p == 1
+        #         if choice_meta:
+        #             meta_logit = torch.softmax(meta_logits[i][1:], dim=-1)
+        #             meta_p = torch.argmax(meta_logit, dim=-1)
+        #             p = self.meta_roles[meta_p]
+        #         else:
+        #             main_logit = torch.softmax(main_logits[i], dim=-1)
+        #             main_logit = torch.softmax(main_logit * self.meta_mask, dim=-1)
+        #             p = torch.argmax(main_logit, dim=-1)
+
+        #     predicts[i] = p
 
         for i, (main_p, meta_p, select_p) in enumerate(zip(main_predicts, meta_predicts, select_predicts)):
             branch_sum = select_p
