@@ -116,7 +116,7 @@ class Runner:
         elif mode == 'save':
             self.hyper.vocab_init()
             self._init_model()
-            self.load_model('meta')
+            self.load_model(kwargs["sub_mode"])
             self.model.save()
         elif mode == 'threshold':
             self.hyper.vocab_init()
@@ -144,6 +144,7 @@ class Runner:
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
             "Meta": Meta_Dataset,
             "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
+            "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
             "Head": partial(HeadRole_Dataset, select_roles=self.hyper.meta_roles),
             "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles)
         }
@@ -152,6 +153,7 @@ class Runner:
             "Selector": Selector_loader,
             "Meta": ACE_loader,
             "FewRoleWithOther": ACE_loader,
+            "FewRole": ACE_loader,
             "Head": ACE_loader,
             "Recall": ACEWithMeta_loader
         }
@@ -165,6 +167,7 @@ class Runner:
             "Selector": Selector,
             "Meta": MetaAEModel,
             "FewRoleWithOther": MetaAEModel,
+            "FewRole": MetaAEModel,
             "Head": HeadAEModel,
             "Recall": RecallAEModel
         }
@@ -323,7 +326,13 @@ class Runner:
         return train_loader,dev_loader,test_loader
 
     def _get_train_loader(self, dataset: str, batch_size: int, num_workers: int):
-        train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+        if self.hyper.model == "FewRoleWithOther":
+            train_set = MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+        elif self.hyper.model == "FewRole":
+            train_set = MetaFewRole_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+        else:
+            train_set = self.Dataset(self.hyper, dataset)
+        # train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
         sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model in ["Selector", "FewRoleWithOther"] else None
         return self.Loader(
             train_set,
@@ -331,7 +340,7 @@ class Runner:
             batch_size=batch_size,
             pin_memory=True,
             num_workers=num_workers
-        ) if self.hyper.model != "FewRoleWithOther" else Balanced_loader(train_set, self.hyper)
+        ) if self.hyper.model not in ["FewRoleWithOther", "FewRole"] else Balanced_loader(train_set, self.hyper)
 
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)

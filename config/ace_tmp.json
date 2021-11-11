@@ -6,7 +6,7 @@
     "train": "train.json",
     "dev": "dev.json",
     "test": "test.json",
-    "model": "Head",
+    "model": "FewRole",
     "optimizer": "adam",
     "statistic": "all_data.json",
     "batch_size_train": 24,
@@ -21,9 +21,10 @@
     "k": 5,
     "fast_steps": 5,
     "num_task": 32,
-    "meta_roles": [10, 19, 21, 25, 26, 27, 28, 29, 34],
+    "meta_roles": [10, 19, 21, 25, 26, 27, 28, 29, 32, 34],
     "filter_roles": [35],
-    "soft": 0.2,
+    "soft": 0.05,
+    "prob": [0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
     "metric": "macro",
     "gpu": 0
 }

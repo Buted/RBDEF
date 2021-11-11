@@ -10,7 +10,6 @@ class SampleDropout:
     def __init__(self, hyper: Hyper):
         self.p = hyper.prob
         self.dropout_ratio = nn.Embedding(hyper.n, 1)
-        self.dropout_ratio = self.dropout_ratio.cuda(hyper.gpu)
         self._init_dropout()
 
     def _init_dropout(self):
