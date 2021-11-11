@@ -11,6 +11,7 @@ from code.models.encoder import Encoder
 from code.models.model import Model
 from code.loss import SoftCrossEntropyLoss, MaskHandler
 from code.metrics import MetaF1
+from code.models.sample_dropout import SampleDropout
 
 
 class MetaAEModel(Model):
@@ -33,6 +34,8 @@ class MetaAEModel(Model):
 
         self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
         self.soft = True
+
+        self.dropout = SampleDropout(hyper)
 
         self.to(self.gpu)
 
@@ -58,6 +61,7 @@ class MetaAEModel(Model):
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)
+        hard_label = labels
 
         with torch.no_grad():
             if self.soft:
@@ -65,6 +69,9 @@ class MetaAEModel(Model):
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
+        if is_train:
+            entity_encoding = self.dropout(entity_encoding, hard_label)
+            trigger_encoding = self.dropout(trigger_encoding, hard_label)
         logits = self.classifier(entity_encoding, trigger_encoding)
 
         output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)

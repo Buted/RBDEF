@@ -11,6 +11,7 @@ class SampleDropout:
         self.p = hyper.prob
         self.dropout_ratio = nn.Embedding(hyper.n, 1)
         self.dropout_ratio = self.dropout_ratio.cuda(hyper.gpu)
+        self._init_dropout()
 
     def _init_dropout(self):
         np_prob = np.array(self.p)
@@ -20,11 +21,11 @@ class SampleDropout:
         self.dropout_ratio.weight.requires_grad = False
     
     def __call__(self, x, label):
-        ratio, mask = self._generate_mask(x, label)
+        ratio, mask = self._generate_mask(x, label) 
         x *= mask
         
         amplification = torch.reciprocal(1 -  ratio)
-        amplification.requires_grad = False
+        amplification = amplification.detach()
         x *= amplification
         return x
 

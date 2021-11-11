@@ -11,7 +11,7 @@
     "statistic": "all_data.json",
     "batch_size_train": 24,
     "batch_size_eval": 100,
-    "epoch_num": 20,
+    "epoch_num": 50,
     "lr": 0.001,
     "meta_lr": 0.005,
     "seed": 42,
@@ -24,7 +24,7 @@
     "meta_roles": [10, 19, 21, 25, 26, 27, 28, 29, 34],
     "filter_roles": [35],
     "soft": 0.05,
-    "prob": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "prob": [0, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
     "metric": "macro",
     "gpu": 0
 }
