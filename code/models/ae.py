@@ -8,7 +8,7 @@ from functools import partial
 # from transformers.models.bert import BertModel
 
 from code.config import Hyper
-from code.models.classifier import MainClassifier
+from code.models.classifier import ScaleMainClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
 from code.metrics import F1, Indicator
@@ -21,7 +21,7 @@ class AEModel(Model):
         
         self.encoder = Encoder(hyper)
 
-        self.classifier = MainClassifier(self.encoder.embed_dim, hyper.role_vocab_size)
+        self.classifier = ScaleMainClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size)
 
         self.main_loss = nn.CrossEntropyLoss()
 
