@@ -7,7 +7,7 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import HeadClassifier
+from code.models.classifier import ScaleHeadClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
 from code.metrics import HeadF1
@@ -22,7 +22,7 @@ class HeadAEModel(Model):
         self.encoder = Encoder(hyper)
         self.encoder.load()
 
-        self.classifier = HeadClassifier(self.encoder.embed_dim, hyper.role_vocab_size - len(hyper.meta_roles) + 1)
+        self.classifier = ScaleHeadClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - len(hyper.meta_roles) + 1)
 
         self.loss = nn.CrossEntropyLoss()
 
