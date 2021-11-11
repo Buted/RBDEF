@@ -25,6 +25,24 @@ class FewRoleWithOther_Dataset(ACE_Dataset):
         return role_remap
 
 
+class HeadRole_Dataset(FewRoleWithOther_Dataset):
+    def __init__(self, hyper: Hyper, dataset: str, select_roles: List[int]):
+        self.role_vocab_size = hyper.role_vocab_size
+        super(HeadRole_Dataset, self).__init__(hyper, dataset, select_roles)
+
+    def _build_role_remap(self, select_roles: List[int]) -> Dict[int, int]:
+        role_remap = defaultdict(int)
+        for r in select_roles:
+            role_remap[r] = 0
+
+        j = 1
+        for i in range(self.role_vocab_size):
+            if i not in select_roles:
+                role_remap[i] = j
+                j += 1
+        return role_remap
+
+
 class Recall_Dataset(FewRoleWithOther_Dataset):
     def _remap_labels(self, select_roles: List[int]):
         role_remap = self._build_role_remap(select_roles)

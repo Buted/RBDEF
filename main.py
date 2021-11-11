@@ -144,6 +144,7 @@ class Runner:
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
             "Meta": Meta_Dataset,
             "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
+            "Head": partial(HeadRole_Dataset, select_roles=self.hyper.meta_roles),
             "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
@@ -151,6 +152,7 @@ class Runner:
             "Selector": Selector_loader,
             "Meta": ACE_loader,
             "FewRoleWithOther": ACE_loader,
+            "Head": ACE_loader,
             "Recall": ACEWithMeta_loader
         }
         self.Dataset = dataset[self.hyper.model]
@@ -163,6 +165,7 @@ class Runner:
             "Selector": Selector,
             "Meta": MetaAEModel,
             "FewRoleWithOther": MetaAEModel,
+            "Head": HeadAEModel,
             "Recall": RecallAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)

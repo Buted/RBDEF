@@ -1,5 +1,3 @@
-
-import logging
 import learn2learn as l2l
 
 from code.config import Hyper
@@ -25,7 +23,7 @@ class Balanced_loader:
                 num_workers=8,
             )).next()
         self.iter_times = 0
-        self.iters_each_epoch = 1040
+        self.iters_each_epoch = 250
         self.num_tasks = self.hyper.epoch_num * self.iters_each_epoch
     
     def _get_balance_dataset(self):

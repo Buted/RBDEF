@@ -1,6 +1,3 @@
-from typing import Dict, List
-from sklearn.metrics import classification_report
-
 from code.metrics.F1 import F1
 from code.config import Hyper
 
