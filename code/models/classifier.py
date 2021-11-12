@@ -25,9 +25,9 @@ class HeadClassifier(Classifier):
         super(HeadClassifier, self).__init__(embed_dim, class_num)
 
 
-class ScaleClassifier(Module):
+class ScalableClassifier(Module):
     def __init__(self, embed_dim: int, out_dim: int, class_num: int):
-        super(ScaleClassifier, self).__init__()
+        super(ScalableClassifier, self).__init__()
         self.gate = ScalableGate(embed_dim, out_dim)
         self.classifier = nn.Linear(out_dim, class_num)
     
@@ -36,11 +36,11 @@ class ScaleClassifier(Module):
         return self.classifier(h)
 
 
-class ScaleMainClassifier(ScaleClassifier):
+class ScaleMainClassifier(ScalableClassifier):
     pass
 
 
-class ScaleHeadClassifier(ScaleClassifier):
+class ScaleHeadClassifier(ScalableClassifier):
     pass
 
 
@@ -64,3 +64,17 @@ class MetaClassifier(Module):
     def forward(self, *args):
         h = self.gate(*args)
         return self.classifier(h)
+
+
+class CoarseSelectorClassifier(ScalableClassifier):
+    def __init__(self, embed_dim: int, out_dim: int):
+        super(CoarseSelectorClassifier, self).__init__(embed_dim, out_dim, 3)
+        self.embed_dim = embed_dim
+        self.out_dim = out_dim
+    
+    def load(self, meta_n: int):
+        meta_classifier = MetaClassifier(self.embed_dim, self.out_dim, meta_n)
+        meta_classifier.load()
+        self.gate = meta_classifier.gate
+        self.classifier.weight = nn.Parameter(meta_classifier.classifier.weight[:3])
+        self.classifier.bias = nn.Parameter(meta_classifier.classifier.bias[:3])

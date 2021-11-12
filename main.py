@@ -13,6 +13,7 @@ from functools import partial
 from torch.optim import Adam, SGD
 
 from code.config import Hyper
+from code.models.coarse_selector import CoarseSelector
 from code.preprocess import * 
 from code.dataloader import *
 from code.models import *
@@ -142,6 +143,7 @@ class Runner:
         dataset = {
             "Main model": ACE_Dataset,
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
+            "Coarse": partial(CoarseSelector_Dataset, select_roles=self.hyper.meta_roles),
             "Meta": Meta_Dataset,
             "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
             "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
@@ -151,6 +153,7 @@ class Runner:
         loader = {
             "Main model": ACE_loader,
             "Selector": Selector_loader,
+            "Coarse": ACE_loader,
             "Meta": ACE_loader,
             "FewRoleWithOther": ACE_loader,
             "FewRole": ACE_loader,
@@ -165,6 +168,7 @@ class Runner:
         model_dict = {
             "Main model": AEModel,
             "Selector": Selector,
+            "Coarse": CoarseSelector,
             "Meta": MetaAEModel,
             "FewRoleWithOther": MetaAEModel,
             "FewRole": MetaAEModel,
@@ -330,6 +334,9 @@ class Runner:
             train_set = MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
         elif self.hyper.model == "FewRole":
             train_set = MetaFewRole_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+        elif self.hyper.model == "Coarse":
+            train_set = MetaCoarseSelector_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+            self.hyper.n = 3
         else:
             train_set = self.Dataset(self.hyper, dataset)
         # train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
@@ -340,7 +347,7 @@ class Runner:
             batch_size=batch_size,
             pin_memory=True,
             num_workers=num_workers
-        ) if self.hyper.model not in ["FewRoleWithOther", "FewRole"] else Balanced_loader(train_set, self.hyper)
+        ) if self.hyper.model not in ["FewRoleWithOther", "FewRole", "Coarse"] else Balanced_loader(train_set, self.hyper)
 
     def _get_loader(self, dataset: str, batch_size: int, num_workers: int):
         data_set = self.Dataset(self.hyper, dataset)
