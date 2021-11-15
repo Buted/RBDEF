@@ -78,3 +78,11 @@ class CoarseSelectorClassifier(ScalableClassifier):
         self.gate = meta_classifier.gate
         self.classifier.weight = nn.Parameter(meta_classifier.classifier.weight[:3])
         self.classifier.bias = nn.Parameter(meta_classifier.classifier.bias[:3])
+
+
+class NonRoleClassifier(SelectorClassifier):
+    pass
+
+
+class BranchSelectorClassifier(SelectorClassifier):
+    pass

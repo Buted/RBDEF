@@ -39,3 +39,23 @@ class FewRole_Dataset(ACE_Dataset):
     def _build_role_remap(self, select_roles: List[int]):
         role_remap = {r: i for i, r in enumerate(select_roles)}
         return role_remap
+
+
+class HeadRole_Dataset(FewRole_Dataset):
+    def __init__(self, hyper: Hyper, dataset: str, select_roles: List[int]):
+        reverse_roles = list(range(hyper.role_vocab_size))
+        for role in select_roles:
+            reverse_roles.remove(role)
+        reverse_roles.remove(0)
+        super(HeadRole_Dataset, self).__init__(hyper, dataset, reverse_roles)
+
+
+class Branch_Dataset(FewRole_Dataset):
+    def __init__(self, hyper: Hyper, dataset: str, select_roles: List[int]):
+        reverse_roles = list(range(1, hyper.role_vocab_size))
+        super(Branch_Dataset, self).__init__(hyper, dataset, reverse_roles)
+        self.select_roles = select_roles
+        self.label = [self._relabel(role) for role in self.label]
+    
+    def _relabel(self, role: int) -> int:
+        return 0 if role not in self.select_roles else 1

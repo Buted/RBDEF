@@ -27,4 +27,11 @@ class CoarseSelector_Dataset(ACE_Dataset):
             return 2
 
 
+class NonRole_Dataset(ACE_Dataset):
+    def __init__(self, hyper: Hyper, dataset: str):
+        super(NonRole_Dataset, self).__init__(hyper, dataset)
+        self.label = [1 if role == 0 else 0 for role in self.label]
+
+
+
 Selector_loader = partial(DataLoader, collate_fn=collate_fn, pin_memory=True)

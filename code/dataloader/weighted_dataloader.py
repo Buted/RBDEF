@@ -6,7 +6,6 @@ from torch.utils.data.dataloader import DataLoader
 
 from code.dataloader.ace_dataloader import ACE_Dataset, Batch_reader
 from code.config import Hyper
-from code.dataloader.few_role_dataloader import FewRole_Dataset
 
 
 class FewRoleWithOther_Dataset(ACE_Dataset):
@@ -24,15 +23,6 @@ class FewRoleWithOther_Dataset(ACE_Dataset):
         for i, r in enumerate(select_roles):
             role_remap[r] = i + 1
         return role_remap
-
-
-class HeadRole_Dataset(FewRole_Dataset):
-    def __init__(self, hyper: Hyper, dataset: str, select_roles: List[int]):
-        reverse_roles = list(range(hyper.role_vocab_size))
-        for role in select_roles:
-            reverse_roles.remove(role)
-        reverse_roles.remove(0)
-        super(HeadRole_Dataset, self).__init__(hyper, dataset, reverse_roles)
 
 
 class Recall_Dataset(FewRoleWithOther_Dataset):
