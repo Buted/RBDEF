@@ -25,6 +25,20 @@ class FewRoleWithOther_Dataset(ACE_Dataset):
         return role_remap
 
 
+class HeadRole_Dataset(FewRoleWithOther_Dataset):
+    def _build_role_remap(self, select_roles: List[int]) -> Dict[int, int]:
+        role_remap = {0: 0}
+        for r in select_roles:
+            role_remap[r] = 1
+        
+        j = 2
+        for i in range(1, 36):
+            if i not in select_roles:
+                role_remap[i] = j
+                j += 1
+        return role_remap
+
+
 class Recall_Dataset(FewRoleWithOther_Dataset):
     def _remap_labels(self, select_roles: List[int]):
         role_remap = self._build_role_remap(select_roles)
