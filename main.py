@@ -89,7 +89,8 @@ class Runner:
             self.hyper.vocab_init()
             self._init_loader()
             self._init_model()
-            self.load_model("best")
+            self.load_model(kwargs["sub_mode"])
+            # self.model.load()
             self._evaluate()
         elif mode == 'merge':
             merge_dataset(self.hyper)
@@ -150,7 +151,8 @@ class Runner:
             "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
             "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
             "Head": partial(HeadRole_Dataset, select_roles=self.hyper.meta_roles),
-            "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles)
+            "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles),
+            "Fuse": ACE_Dataset
         }
         loader = {
             "Main model": ACE_loader,
@@ -162,7 +164,8 @@ class Runner:
             "FewRoleWithOther": ACE_loader,
             "FewRole": ACE_loader,
             "Head": ACE_loader,
-            "Recall": ACEWithMeta_loader
+            "Recall": ACEWithMeta_loader,
+            "Fuse": ACE_loader
         }
         self.Dataset = dataset[self.hyper.model]
         self.Loader = loader[self.hyper.model]
@@ -179,7 +182,8 @@ class Runner:
             "FewRoleWithOther": MetaAEModel,
             "FewRole": MetaAEModel,
             "Head": HeadAEModel,
-            "Recall": RecallAEModel
+            "Recall": RecallAEModel,
+            "Fuse": FusedAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
@@ -369,6 +373,8 @@ class Runner:
         logging.info('Load testset done.')
         threshold = 0.0
         plus = [0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05, 0.02, 0.02, 0.01, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
+        # threshold = 0.5
+        # plus = [0]
         for plus_thresold in plus:
             threshold += plus_thresold
             self.model.threshold = threshold

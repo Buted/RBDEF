@@ -1,12 +1,9 @@
 import torch
 
-import torch.nn as nn
-
-from typing import Dict, List
-from functools import partial
+from typing import Dict, List, Tuple
 
 from code.config import Hyper
-from code.models.classifier import MainClassifier, MetaClassifier
+from code.models.classifier import CoarseSelectorClassifier, ScaleHeadClassifier, NonRoleClassifier, BranchSelectorClassifier, MetaClassifier, SelectorClassifier
 from code.models.encoder import Encoder
 from code.models.model import Model
 from code.metrics import F1
@@ -17,82 +14,85 @@ class FusedAEModel(Model):
     def __init__(self, hyper: Hyper):
         super(FusedAEModel, self).__init__()
         self.gpu = hyper.gpu
+        self.meta_roles = hyper.meta_roles
+        self.head_roles = [0, 1] + [i for i in range(1, hyper.role_vocab_size) if i not in self.meta_roles]
+        self.threshold = 0.5
         
         self.encoder = Encoder(hyper)
-        self.main_classifier = MainClassifier(self.encoder.embed_dim, hyper.role_vocab_size)
-        self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim)
+        # self.non_role_classifier = NonRoleClassifier(self.encoder.embed_dim, hyper.out_dim)
+        # self.branch_selector = BranchSelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        # self.coarse_selector = CoarseSelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        # self.coarse_selector.load()
+        self.selector = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.head_classifier = ScaleHeadClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - hyper.n + 1)
+        self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
         self.load()
-
-        self.fusing_mask = self._get_fusing_mask(hyper.role_vocab_size, hyper.meta_roles)
-        # self.alpha = hyper.alpha
-        self.alpha = nn.Parameter(torch.tensor(hyper.alpha), requires_grad=False)
-        # self.alpha = hyper.alpha
-
-        self.loss = nn.NLLLoss()
-        # self.loss = nn.CrossEntropyLoss()
 
         self.metric = F1(hyper)
         self.get_metric = self.metric.report
 
         self.to(hyper.gpu)
 
-    def _get_fusing_mask(self, roles_size: int, meta_roles: List[int]):
-        meta_roles_size = len(meta_roles)
-        mask = torch.zeros((meta_roles_size, roles_size)).float().cuda(self.gpu)
-        mask.requires_grad = False
-        mask.log_softmax
-        for i, role_idx in enumerate(meta_roles):
-            mask[i, role_idx] = 1
-        return mask
-
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)
 
-        entity_encoding, trigger_encoding = self.encoder(sample, is_train)
-        main_logits = self.main_classifier(entity_encoding, trigger_encoding)
-        entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
+        entity_encoding, trigger_encoding = self.encoder(sample, False)
+
+        select_logits = self.selector(entity_encoding, trigger_encoding).squeeze()
+        # non_role_logits = self.non_role_classifier(entity_encoding, trigger_encoding).squeeze()
+        # branch_logits = self.branch_selector(entity_encoding, trigger_encoding).squeeze()
+        # coarse_logits = self.coarse_selector(entity_encoding, trigger_encoding)
+        head_logits = self.head_classifier(entity_encoding, trigger_encoding)
         meta_logits = self.meta_classifier(entity_encoding, trigger_encoding)
 
-        prob = self._fuse_to_prob(main_logits, meta_logits)
         
-        # prob = self.alpha * main_logits + (1 - self.alpha) * torch.matmul(meta_logits, self.fusing_mask)
-        output['loss'] = self._loss(prob, labels)
-        # print(output['loss'])
-        
-        if is_train:
-            output["description"] = partial(self.description, output=output)
-        else:
-            self._update_metric(prob, labels)
-            output["probability"] = prob
+        self._update_metric((select_logits, head_logits, meta_logits), labels)
             
         return output
 
-    def _fuse_to_prob(self, main_logits, meta_logits):
-        episilon = 1e-10
-        prob = lambda x: torch.min(torch.softmax(x, dim=-1) + episilon, torch.full_like(x, 1))
-        # main_logits -= torch.max(main_logits, dim=-1)[0].view(-1, 1)
-        # meta_logits -= torch.max(meta_logits, dim=-1)[0].view(-1, 1)
-        main_prob = prob(main_logits)
-        meta_prob = prob(meta_logits)
-        meta_prob = torch.matmul(meta_prob, self.fusing_mask)
-        alpha = torch.sigmoid(self.alpha)
-        prob = alpha * main_prob + (1 - alpha) * meta_prob
-        return prob
-
-    def _loss(self, prob, labels):
-        log_prob = torch.log(prob)
-        return self.loss(log_prob, target=labels)
-
-    def _update_metric(self, prob, labels) -> None:
-        predicts = torch.argmax(prob, dim=-1)
+    def _update_metric(self, logits, labels) -> None:
+        predicts = self._generate_predicts(logits, labels)
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
-    
+
+    def _generate_predicts(self, logits: Tuple, labels):
+        select_logits, head_logits, meta_logits = logits    
+
+        head_predicts = torch.argmax(head_logits, dim=-1)
+        meta_predicts = torch.argmax(meta_logits, dim=-1)
+
+        select_prob = torch.sigmoid(select_logits)
+        select_predicts = torch.gt(select_prob, self.threshold).int()
+
+        predicts = torch.zeros_like(meta_predicts)
+        for i, (select_p, head_p, meta_p) in enumerate(zip(select_predicts, head_predicts, meta_predicts)):
+
+
+            # predicts[i] = self.meta_roles[meta_p]
+            # predicts[i] = self.head_roles[head_p]
+            # predicts[i] = labels[i]
+
+            if select_p == 1 or head_p == 1:
+                predicts[i] = self.meta_roles[meta_p]
+            else:
+                predicts[i] = self.head_roles[head_p]
+
+            # if coarse_p == 0:
+            #     predicts[i] = 0
+            # elif coarse_p == 2:
+            #     predicts[i] = self.meta_roles[meta_p]
+            # else:
+            #     predicts[i] = self.head_roles[head_p]
+
+        return predicts
+
     def save(self):
-        logging.info(self.alpha)
         return
 
     def load(self):
         self.encoder.load()
-        self.main_classifier.load()
+        # self.non_role_classifier.load()
+        # self.branch_selector.load()
+        self.selector.load()
+        self.head_classifier.load()
         self.meta_classifier.load()
