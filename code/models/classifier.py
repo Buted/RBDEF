@@ -49,10 +49,19 @@ class SelectorClassifier(Module):
         super(SelectorClassifier, self).__init__()
         self.gate = ScalableGate(embed_dim, out_dim)
         self.classifier = nn.Linear(out_dim, 1)
+        self.embed_dim = embed_dim
+        self.out_dim = out_dim
     
     def forward(self, *args):
         h = self.gate(*args)
         return self.classifier(h)
+
+    def load_from_meta(self, meta_n: int):
+        meta_classifier = MetaClassifier(self.embed_dim, self.out_dim, meta_n)
+        meta_classifier.load()
+        self.gate = meta_classifier.gate
+        self.classifier.weight = nn.Parameter(meta_classifier.classifier.weight[0].view(1, -1))
+        self.classifier.bias = nn.Parameter(meta_classifier.classifier.bias[0].view(-1))
 
 
 class MetaClassifier(Module):

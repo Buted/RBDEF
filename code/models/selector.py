@@ -22,6 +22,7 @@ class Selector(Model):
         self.encoder.load()
 
         self.classifier = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.classifier.load_from_meta(hyper.n)
 
         self.loss = nn.BCEWithLogitsLoss()
 
@@ -34,7 +35,7 @@ class Selector(Model):
         output = {}
         labels = sample.label.cuda(self.gpu).float()
 
-        with torch.no_grad:
+        with torch.no_grad():
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
@@ -42,6 +43,7 @@ class Selector(Model):
         logits = logits.squeeze()
 
         output['loss'] = self.loss(logits, target=labels)
+        # output['loss']  += 0.02 * self._polar_constraint(logits)
         
         if is_train:
             output["description"] = partial(self.description, output=output)
@@ -57,4 +59,18 @@ class Selector(Model):
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
     
     def save(self):
-        self.classifier.save()
+        # self.classifier.save()
+        return
+
+    @staticmethod
+    def _polar_constraint(logits):
+        prob = torch.sigmoid(logits)
+        batch_size = prob.size()[0]
+        prob_unipolar = 1 - prob
+
+        mean = torch.mean(prob)
+        deviation = prob - mean
+        constraint_centrifugal = torch.abs(deviation)
+
+        polar_constraint = prob_unipolar - constraint_centrifugal
+        return torch.sum(polar_constraint) / batch_size
