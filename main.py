@@ -89,8 +89,10 @@ class Runner:
             self.hyper.vocab_init()
             self._init_loader()
             self._init_model()
-            self.load_model(kwargs["sub_mode"])
-            # self.model.load()
+            if kwargs["load"]:
+                self.model.load()
+            else:
+                self.load_model(kwargs["sub_mode"])
             self._evaluate()
         elif mode == 'merge':
             merge_dataset(self.hyper)
@@ -114,6 +116,10 @@ class Runner:
             self.hyper.vocab_init()
             self._init_loader()
             self._init_model()
+            if kwargs["load"]:
+                self.model.load()
+            else:
+                self.load_model(kwargs["sub_mode"])
             self._plot_pr_curve()
         elif mode == 'save':
             self.hyper.vocab_init()
@@ -143,6 +149,7 @@ class Runner:
     def _init_loader(self):
         dataset = {
             "Main model": ACE_Dataset,
+            "Simple": ACE_Dataset,
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
             "Coarse": partial(CoarseSelector_Dataset, select_roles=self.hyper.meta_roles),
             "NonRole": NonRole_Dataset,
@@ -156,6 +163,7 @@ class Runner:
         }
         loader = {
             "Main model": ACE_loader,
+            "Simple": ACE_loader,
             "Selector": Selector_loader,
             "Coarse": ACE_loader,
             "NonRole": ACE_loader,
@@ -174,6 +182,7 @@ class Runner:
         logging.info(self.hyper.model)
         model_dict = {
             "Main model": AEModel,
+            "Simple": SimpleAEModel,
             "Selector": Selector,
             "Coarse": CoarseSelector,
             "NonRole": NonRoleFilter,
@@ -293,7 +302,7 @@ class Runner:
             self.optimizer.step()
             logging.info("Step: %d, loss: %.4f" % (epoch, loss.item()))
 
-            if (epoch + 1) % 200 == 0:
+            if (epoch + 1) % 300 == 0:
                 self.save_model(str(epoch + 1))
 
         self.save_model("meta")
@@ -372,7 +381,7 @@ class Runner:
         test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
         threshold = 0.0
-        plus = [0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05, 0.02, 0.02, 0.01, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
+        plus = [0, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1]
         # threshold = 0.5
         # plus = [0]
         for plus_thresold in plus:
@@ -525,7 +534,7 @@ class Runner:
         ranker.save_into_log()
     
     def _plot_pr_curve(self):
-        self.model.load()
+        # self.model.load()
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         self.evaluation(dev_loader)
         self.model.curve.get_metric(True)

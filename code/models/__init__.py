@@ -6,3 +6,4 @@ from code.models.head_ae import HeadAEModel
 from code.models.non_role_ae import NonRoleFilter
 from code.models.branch_selector import BranchSelector
 from code.models.fused_ae import FusedAEModel
+from code.models.simple_ae import SimpleAEModel

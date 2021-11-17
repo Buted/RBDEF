@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from code.models.gate import Gate, ScalableGate
@@ -95,3 +96,13 @@ class NonRoleClassifier(SelectorClassifier):
 
 class BranchSelectorClassifier(SelectorClassifier):
     pass
+
+
+class SimpleClassifier(Module):
+    def __init__(self, embed_dim: int, class_num: int):
+        super(SimpleClassifier, self).__init__()
+        self.classifier = nn.Linear(embed_dim*2, class_num)
+
+    def forward(self, entity_encoding, trigger_encoding):
+        h = torch.cat((entity_encoding, trigger_encoding), dim=-1)
+        return self.classifier(h)
