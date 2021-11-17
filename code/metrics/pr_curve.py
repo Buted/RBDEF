@@ -27,3 +27,13 @@ class BinaryPRCurve(BinaryMetric):
             plt.plot(r, p)
             plt.show()
             plt.savefig("P-R Curve.png")
+
+        max_threshold = 0.
+        max_f1 = 0.
+        for cur_p, cur_r, thre in zip(p, r, threshold):
+            f1 = 2*cur_p*cur_r / (cur_p + cur_r)
+            if f1 >= max_f1:
+                max_f1 = f1
+                max_threshold = thre
+        logging.info("max_threshold: %f, max_f1: %f" % (max_threshold, max_f1))
+        print("max_threshold: %f, max_f1: %f" % (max_threshold, max_f1))
