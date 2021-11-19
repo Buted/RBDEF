@@ -35,7 +35,7 @@ class MetaAEModel(Model):
         self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
         self.soft = True
 
-        self.dropout = SampleDropout(hyper)
+        # self.dropout = SampleDropout(hyper)
 
         self.to(self.gpu)
 
@@ -69,9 +69,9 @@ class MetaAEModel(Model):
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
-        if is_train:
-            entity_encoding = self.dropout(entity_encoding, hard_label)
-            trigger_encoding = self.dropout(trigger_encoding, hard_label)
+        # if is_train:
+        #     entity_encoding = self.dropout(entity_encoding, hard_label)
+        #     trigger_encoding = self.dropout(trigger_encoding, hard_label)
         logits = self.classifier(entity_encoding, trigger_encoding)
 
         output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)
@@ -90,4 +90,4 @@ class MetaAEModel(Model):
  
     def save(self):
         self.classifier.save()
-        # return
+        return
