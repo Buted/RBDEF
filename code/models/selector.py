@@ -22,7 +22,7 @@ class Selector(Model):
         self.encoder.load()
 
         self.classifier = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
-        self.classifier.load_from_meta(hyper.n)
+        # self.classifier.load_from_meta(hyper.n)
 
         self.loss = nn.BCEWithLogitsLoss()
 
@@ -59,7 +59,7 @@ class Selector(Model):
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
     
     def save(self):
-        # self.classifier.save()
+        self.classifier.save()
         return
 
     @staticmethod
