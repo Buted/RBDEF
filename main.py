@@ -378,17 +378,25 @@ class Runner:
         )
 
     def _search_threshold(self):
+        dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
         threshold = 0.0
         plus = [0, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1]
         # threshold = 0.5
         # plus = [0]
+        best_f1 = 0.0
+        best_threshold = 0.
         for plus_thresold in plus:
             threshold += plus_thresold
             self.model.threshold = threshold
             logging.info("Threshold: %.3f" % threshold)
+            f1 = self._evaluate(dev_loader)
+            if f1 > best_f1:
+                best_threshold = threshold
             self._evaluate(test_loader)
+        logging.info("Best threshold: %.3f" % best_threshold)
+        self._evaluate(test_loader)
 
     def _evaluate(self, test_loader=None):
         if test_loader is None:
