@@ -7,3 +7,5 @@ from code.models.non_role_ae import NonRoleFilter
 from code.models.branch_selector import BranchSelector
 from code.models.fused_ae import FusedAEModel
 from code.models.simple_ae import SimpleAEModel
+from code.models.ae_with_selector import AEWithSelector
+from code.models.meta_with_other_ae import MetaWithOtherAEModel

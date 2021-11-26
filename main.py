@@ -108,6 +108,7 @@ class Runner:
             if kwargs["sub_mode"] == 'train':
                 self._train_and_evaluate_indicator()
             else:
+                self.load_model(kwargs["sub_mode"])
                 self._evaluate_indicator()
         elif mode == 'rank':
             self.hyper.vocab_init()
@@ -131,6 +132,8 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._search_threshold()
+            self.model.threshold = 0.5
+            self.save_model("final")
         else:
             raise ValueError("Invalid mode!")
 
@@ -159,7 +162,9 @@ class Runner:
             "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
             "Head": partial(HeadRole_Dataset, select_roles=self.hyper.meta_roles),
             "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles),
-            "Fuse": ACE_Dataset
+            "Fuse": ACE_Dataset,
+            "AEWithSelector": partial(AE_With_Selector_Dataset, select_roles=self.hyper.meta_roles),
+            "MetaWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
             "Main model": ACE_loader,
@@ -173,7 +178,9 @@ class Runner:
             "FewRole": ACE_loader,
             "Head": ACE_loader,
             "Recall": ACEWithMeta_loader,
-            "Fuse": ACE_loader
+            "Fuse": ACE_loader,
+            "AEWithSelector": ACE_With_Selector_loader,
+            "MetaWithOther": ACE_loader
         }
         self.Dataset = dataset[self.hyper.model]
         self.Loader = loader[self.hyper.model]
@@ -192,12 +199,14 @@ class Runner:
             "FewRole": MetaAEModel,
             "Head": HeadAEModel,
             "Recall": RecallAEModel,
-            "Fuse": FusedAEModel
+            "Fuse": FusedAEModel,
+            "AEWithSelector": AEWithSelector,
+            "MetaWithOther": MetaWithOtherAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        if self.hyper.model == "Main model":
+        if self.hyper.model in ["Main model", "AEWithSelector"]:
             bert_params = list(map(id, self.model.encoder.encoder.parameters()))
             scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
             params_with_lr = [
@@ -356,6 +365,9 @@ class Runner:
         # elif self.hyper.model == "Coarse":
             # train_set = MetaCoarseSelector_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
             # self.hyper.n = 3
+        elif self.hyper.model == "MetaWithOther":
+            train_set = Meta_Dataset(self.hyper, dataset)
+            return BalancedWithOther_loader(train_set, self.hyper)
         else:
             train_set = self.Dataset(self.hyper, dataset)
         # train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
@@ -393,9 +405,11 @@ class Runner:
             logging.info("Threshold: %.3f" % threshold)
             f1 = self._evaluate(dev_loader)
             if f1 > best_f1:
+                best_f1 = f1
                 best_threshold = threshold
             self._evaluate(test_loader)
         logging.info("Best threshold: %.3f" % best_threshold)
+        self.model.threshold = best_threshold
         self._evaluate(test_loader)
 
     def _evaluate(self, test_loader=None):
@@ -523,7 +537,7 @@ class Runner:
         return format_report
     
     def _evaluate_indicator(self) -> None:
-        self.load_model("best")
+        # self.load_model("best")
         logging.info("Load dataset.")
         test_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info("Evaluate start.")

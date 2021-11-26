@@ -1,3 +1,7 @@
+import torch
+
+from collections import defaultdict
+
 import learn2learn as l2l
 
 from code.config import Hyper
@@ -64,3 +68,31 @@ class Balanced_loader:
 
     def __len__(self):
         return self.iters_each_epoch
+
+
+class BalancedWithOther_loader(Balanced_loader):
+    def _get_balance_dataset(self):
+        remap = defaultdict(int)
+        for i, r in enumerate(self.hyper.meta_roles):
+            remap[r] = i + 1
+        
+        dataset = l2l.data.MetaDataset(self.dataset)
+        fewrole_tasks = l2l.data.TaskDataset(dataset,
+            task_transforms=[
+                l2l.data.transforms.FusedNWaysKShots(dataset, n=self.hyper.n-1, k=self.hyper.k, filter_labels=self.hyper.meta_roles)
+            ],
+            num_tasks=self.num_tasks
+        )
+        other_roles = list(set(range(self.hyper.role_vocab_size)) - set(self.hyper.meta_roles))
+        other_tasks = l2l.data.TaskDataset(dataset,
+            task_transforms=[
+                l2l.data.transforms.FusedNWaysKShots(dataset, n=1, k=self.hyper.k, filter_labels=other_roles)
+            ],
+            num_tasks=self.num_tasks
+        )
+
+        for _ in range(self.num_tasks):
+            fewrole_task, other_task = fewrole_tasks.sample(), other_tasks.sample()
+            task = torch.cat((fewrole_task, other_task))
+            fewshot_dataset = FewShot_Dataset(dataset, task, remap)
+            yield fewshot_dataset
