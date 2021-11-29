@@ -164,7 +164,8 @@ class Runner:
             "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles),
             "Fuse": ACE_Dataset,
             "AEWithSelector": partial(AE_With_Selector_Dataset, select_roles=self.hyper.meta_roles),
-            "MetaWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles)
+            "MetaWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
+            "AugmentMeta": ACE_Dataset
         }
         loader = {
             "Main model": ACE_loader,
@@ -180,7 +181,8 @@ class Runner:
             "Recall": ACEWithMeta_loader,
             "Fuse": ACE_loader,
             "AEWithSelector": ACE_With_Selector_loader,
-            "MetaWithOther": ACE_loader
+            "MetaWithOther": ACE_loader,
+            "AugmentMeta": ACE_loader
         }
         self.Dataset = dataset[self.hyper.model]
         self.Loader = loader[self.hyper.model]
@@ -201,12 +203,13 @@ class Runner:
             "Recall": RecallAEModel,
             "Fuse": FusedAEModel,
             "AEWithSelector": AEWithSelector,
-            "MetaWithOther": MetaWithOtherAEModel
+            "MetaWithOther": MetaWithOtherAEModel,
+            "AugmentMeta": AugmentMetaAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        if self.hyper.model in ["Main model", "AEWithSelector"]:
+        if self.hyper.model in ["Main model", "AEWithSelector", "MetaWithOther"]:
             bert_params = list(map(id, self.model.encoder.encoder.parameters()))
             scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
             params_with_lr = [
@@ -366,6 +369,12 @@ class Runner:
             # train_set = MetaCoarseSelector_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
             # self.hyper.n = 3
         elif self.hyper.model == "MetaWithOther":
+            # train_set = Meta_Dataset(self.hyper, dataset)
+            # return BalancedWithOther_loader(train_set, self.hyper)
+            train_set = MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+            # train_set = MetaMetaWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
+            return Balanced_loader(train_set, self.hyper)
+        elif self.hyper.model == "AugmentMetaAEModel":
             train_set = Meta_Dataset(self.hyper, dataset)
             return BalancedWithOther_loader(train_set, self.hyper)
         else:

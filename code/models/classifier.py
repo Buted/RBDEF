@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from typing import List
+
 from code.models.gate import Gate, ScalableGate
 from code.models.module import Module
 
@@ -75,6 +77,18 @@ class MetaClassifier(Module):
         h = self.gate(*args)
         return self.classifier(h)
 
+
+class AugmentMetaClassifier(ScalableClassifier):
+    def load_from_meta(self, meta_roles: List[int], embed_dim: int):
+        meta_classifier = MetaClassifier(embed_dim, self.classifier.in_features, len(meta_roles)+1)
+        meta_classifier.load()
+        self.gate = meta_classifier.gate
+        for i in range(self.classifier.out_features):
+            choice_meta_idx = meta_roles.index(i) if i in meta_roles else 0
+            self.classifier.weight[i] = meta_classifier.classifier.weight[choice_meta_idx]
+            self.classifier.bias[i] = meta_classifier.classifier.bias[choice_meta_idx]
+        self.classifier.weight = nn.Parameter(self.classifier.weight)
+        self.classifier.bias = nn.Parameter(self.classifier.bias)
 
 class CoarseSelectorClassifier(ScalableClassifier):
     def __init__(self, embed_dim: int, out_dim: int):

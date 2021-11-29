@@ -57,5 +57,5 @@ class HeadAEModel(Model):
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
     
     def save(self):
-        # self.classifier.save()
+        self.classifier.save()
         return

@@ -9,3 +9,4 @@ from code.models.fused_ae import FusedAEModel
 from code.models.simple_ae import SimpleAEModel
 from code.models.ae_with_selector import AEWithSelector
 from code.models.meta_with_other_ae import MetaWithOtherAEModel
+from code.models.augment_ae import AugmentMetaAEModel

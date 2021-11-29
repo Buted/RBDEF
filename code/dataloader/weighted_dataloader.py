@@ -25,6 +25,15 @@ class FewRoleWithOther_Dataset(ACE_Dataset):
         return role_remap
 
 
+class MetaWithOther_Dataset(FewRoleWithOther_Dataset):
+    def _build_role_remap(self, select_roles: List[int]) -> Dict[int, int]:
+        role_remap = defaultdict(lambda: 1)
+        role_remap[0] = 0
+        for i, r in enumerate(select_roles):
+            role_remap[r] = i + 2
+        return role_remap
+
+
 class HeadRole_Dataset(FewRoleWithOther_Dataset):
     def _build_role_remap(self, select_roles: List[int]) -> Dict[int, int]:
         role_remap = {0: 0}

@@ -7,7 +7,7 @@ import learn2learn as l2l
 from code.config import Hyper
 from code.dataloader.ace_dataloader import ACE_loader
 from code.dataloader.meta_dataloader import FewShot_Dataset, Meta_Dataset
-from code.dataloader.weighted_dataloader import FewRoleWithOther_Dataset
+from code.dataloader.weighted_dataloader import FewRoleWithOther_Dataset, MetaWithOther_Dataset
 from code.dataloader.few_role_dataloader import FewRole_Dataset
 from code.dataloader.selector_dataloader import CoarseSelector_Dataset
 
@@ -21,6 +21,10 @@ class MetaFewRole_Dataset(FewRole_Dataset, Meta_Dataset):
 
 
 class MetaCoarseSelector_Dataset(CoarseSelector_Dataset, Meta_Dataset):
+    pass
+
+
+class MetaMetaWithOther_Dataset(MetaWithOther_Dataset, Meta_Dataset):
     pass
 
 
