@@ -1,7 +1,9 @@
+import os
 import torch
+
 import torch.nn as nn
 
-from typing import List
+from typing import List, Tuple
 
 from code.models.gate import Gate, ScalableGate
 from code.models.module import Module
@@ -65,6 +67,23 @@ class SelectorClassifier(Module):
         self.gate = meta_classifier.gate
         self.classifier.weight = nn.Parameter(meta_classifier.classifier.weight[0].view(1, -1))
         self.classifier.bias = nn.Parameter(meta_classifier.classifier.bias[0].view(-1))
+
+    def load_from_checkpoint(self, checkpoint: str):
+        self.load_state_dict(
+            torch.load(os.path.join(self.model_dir, self.__class__.__name__ + checkpoint))
+        )
+    
+    @classmethod
+    def load_group(cls, embed_dim: int, out_dim: int) -> Tuple:
+        acc = cls(embed_dim, out_dim)
+        acc.load_from_checkpoint('_acc')
+        avg = cls(embed_dim, out_dim)
+        avg.load_from_checkpoint('_avg')
+        pos = cls(embed_dim, out_dim)
+        pos.load_from_checkpoint('_pos')
+        neg = cls(embed_dim, out_dim)
+        neg.load_from_checkpoint('_neg')
+        return torch.nn.ModuleList([acc, avg, pos, neg])
 
 
 class MetaClassifier(Module):

@@ -234,6 +234,8 @@ class Runner:
 
             new_score, log = self.evaluation(dev_loader)
             logging.info(log)
+            if self.hyper.model == "Selector":
+                self.save_model(str(epoch))
             if new_score >= score:
                 score = new_score
                 best_epoch = epoch

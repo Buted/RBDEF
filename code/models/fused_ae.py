@@ -1,6 +1,7 @@
 import torch
 
 from typing import Dict, List, Tuple
+from functools import reduce
 
 from code.config import Hyper
 from code.models.classifier import CoarseSelectorClassifier, ScaleHeadClassifier, NonRoleClassifier, BranchSelectorClassifier, MetaClassifier, SelectorClassifier
@@ -23,7 +24,7 @@ class FusedAEModel(Model):
         # self.branch_selector = BranchSelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
         # self.coarse_selector = CoarseSelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
         # self.coarse_selector.load()
-        self.selector = SelectorClassifier(self.encoder.embed_dim, hyper.out_dim)
+        self.selectors = SelectorClassifier.load_group(self.encoder.embed_dim, hyper.out_dim)
         self.head_classifier = ScaleHeadClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - hyper.n + 1)
         self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
         self.load()
@@ -39,7 +40,7 @@ class FusedAEModel(Model):
 
         entity_encoding, trigger_encoding = self.encoder(sample, False)
 
-        select_logits = self.selector(entity_encoding, trigger_encoding).squeeze()
+        select_logits = self.selector(entity_encoding, trigger_encoding)
         # non_role_logits = self.non_role_classifier(entity_encoding, trigger_encoding).squeeze()
         # branch_logits = self.branch_selector(entity_encoding, trigger_encoding).squeeze()
         # coarse_logits = self.coarse_selector(entity_encoding, trigger_encoding)
@@ -51,6 +52,9 @@ class FusedAEModel(Model):
             
         return output
 
+    def selector(self, entity_encoding, trigger_encoding):
+        return (selector(entity_encoding, trigger_encoding).squeeze() for selector in self.selectors)
+
     def _update_metric(self, logits, labels) -> None:
         predicts = self._generate_predicts(logits, labels)
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
@@ -61,8 +65,9 @@ class FusedAEModel(Model):
         head_predicts = torch.argmax(head_logits, dim=-1)
         meta_predicts = torch.argmax(meta_logits, dim=-1)
 
-        select_prob = torch.sigmoid(select_logits)
-        select_predicts = torch.gt(select_prob, self.threshold).int()
+        # select_prob = torch.sigmoid(select_logits)
+        # select_predicts = torch.gt(select_prob, self.threshold).int()
+        select_predicts = self.generate_choice(select_logits)
 
         predicts = torch.zeros_like(meta_predicts)
         for i, (select_p, head_p, meta_p) in enumerate(zip(select_predicts, head_predicts, meta_predicts)):
@@ -72,7 +77,8 @@ class FusedAEModel(Model):
             # predicts[i] = self.head_roles[head_p]
             # predicts[i] = labels[i]
 
-            if select_p == 1 or head_p == 1:
+            if select_p > 1 or head_p == 1:
+            # if select_p > 2 or head_p == 1 and select_p > 1):
                 predicts[i] = self.meta_roles[meta_p]
             else:
                 predicts[i] = self.head_roles[head_p]
@@ -86,6 +92,17 @@ class FusedAEModel(Model):
 
         return predicts
 
+    def generate_choice(self, select_logits):
+        def choice(logit):
+            select_prob = torch.sigmoid(logit)
+            select_predicts = torch.gt(select_prob, self.threshold).int()
+            return select_predicts
+        
+        choices = [choice(logit) for logit in select_logits]
+        final_choice = reduce(lambda x, y: x + y, choices)
+        # logging.info(final_choice)
+        return final_choice
+
     def save(self):
         return
 
@@ -93,6 +110,6 @@ class FusedAEModel(Model):
         self.encoder.load()
         # self.non_role_classifier.load()
         # self.branch_selector.load()
-        self.selector.load()
+        # self.selector.load()
         self.head_classifier.load()
         self.meta_classifier.load()
