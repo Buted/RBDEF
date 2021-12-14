@@ -17,7 +17,7 @@ from code.models.coarse_selector import CoarseSelector
 from code.preprocess import * 
 from code.dataloader import *
 from code.models import *
-from code.statistic import CoOccurStatistic, Ranker
+from code.statistic import *
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
@@ -134,6 +134,12 @@ class Runner:
             self._search_threshold()
             self.model.threshold = 0.5
             self.save_model("final")
+        elif mode == 'number':
+            self.hyper.vocab_init()
+            self._role_count()
+        elif mode == 'group':
+            self.hyper.vocab_init()
+            self._group_split()
         else:
             raise ValueError("Invalid mode!")
 
@@ -165,7 +171,8 @@ class Runner:
             "Fuse": ACE_Dataset,
             "AEWithSelector": partial(AE_With_Selector_Dataset, select_roles=self.hyper.meta_roles),
             "MetaWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
-            "AugmentMeta": ACE_Dataset
+            "AugmentMeta": ACE_Dataset,
+            "Fair": Fair_Dataset
         }
         loader = {
             "Main model": ACE_loader,
@@ -182,10 +189,11 @@ class Runner:
             "Fuse": ACE_loader,
             "AEWithSelector": ACE_With_Selector_loader,
             "MetaWithOther": ACE_loader,
-            "AugmentMeta": ACE_loader
+            "AugmentMeta": ACE_loader,
+            "Fair": Fair_loader
         }
-        self.Dataset = dataset[self.hyper.model]
-        self.Loader = loader[self.hyper.model]
+        self.Dataset = dataset.get(self.hyper.model, ACE_Dataset)
+        self.Loader = loader.get(self.hyper.model, ACE_loader)
 
     def _init_model(self):
         logging.info(self.hyper.model)
@@ -204,12 +212,16 @@ class Runner:
             "Fuse": FusedAEModel,
             "AEWithSelector": AEWithSelector,
             "MetaWithOther": MetaWithOtherAEModel,
-            "AugmentMeta": AugmentMetaAEModel
+            "AugmentMeta": AugmentMetaAEModel,
+            "Dice": DiceAEModel,
+            "ClassBalanced": ClassBalancedAEModel,
+            "TDE": TDEAEModel,
+            "Fair": FairAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
     def _init_optimizer(self):
-        if self.hyper.model in ["Main model", "AEWithSelector", "MetaWithOther"]:
+        if self.hyper.model in ["Main model", "AEWithSelector", "MetaWithOther", "Dice", "ClassBalanced", "TDE", "Fair"]:
             bert_params = list(map(id, self.model.encoder.encoder.parameters()))
             scratch_params = filter(lambda p: id (p) not in bert_params, self.model.parameters())
             params_with_lr = [
@@ -571,6 +583,14 @@ class Runner:
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         self.evaluation(dev_loader)
         self.model.curve.get_metric(True)
+
+    def _role_count(self):
+        counter = RoleNumberCounter(self.hyper.train, self.hyper)
+        counter.count()
+    
+    def _group_split(self):
+        spliter = GroupSplit(self.hyper.train, self.hyper)
+        spliter.split()
 
     def _set_seed(self):
         np.random.seed(self.hyper.seed)

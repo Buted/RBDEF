@@ -3,7 +3,7 @@ import os
 
 import torch.hub as pretrained
 
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass
 from cached_property import cached_property
 
@@ -51,6 +51,14 @@ class Hyper(object):
         self.filter_roles: List[int]
         self.soft: float
         self.prob: List[float]
+
+        # CB-loss
+        self.role2num: Dict[int, int]
+        self.beta: float # also beta in Dice, rho in Fair
+
+        # Fair
+        self.group_size: int
+        self.group2id: Dict[str, int]
     
         self.__dict__ = json.load(open(path, 'r'))
     
@@ -83,3 +91,19 @@ class Hyper(object):
     def matrix_init(self):
         matrix = JsonHandler.read_json(os.path.join(self.data_root, 'entity_role_co_occur.json'))
         self.co_occur_matrix = {int(entity_id): occur for entity_id, occur in matrix.items()}
+
+    def get_role2num(self):
+        role2num = json.load(open(
+            os.path.join(self.data_root, 'role2num.json'), 
+            'r',
+            encoding='utf-8'
+        ))
+        self.role2num = {int(r): num for r, num in role2num.items()}
+    
+    def get_group2id(self):
+        self.group2id = json.load(open(
+            os.path.join(self.data_root, 'group2id.json'), 
+            'r',
+            encoding='utf-8'
+        ))
+        self.group_size = len(self.group2id) + 1
