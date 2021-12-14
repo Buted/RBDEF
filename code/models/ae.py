@@ -8,8 +8,8 @@ from functools import partial
 # from transformers.models.bert import BertModel
 
 from code.config import Hyper
-from code.models.classifier import ScaleMainClassifier
-from code.models.encoder import Encoder
+from code.layers.classifier import ScaleMainClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics import F1, Indicator
 

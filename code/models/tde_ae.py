@@ -7,8 +7,8 @@ from functools import partial
 
 from code.models.model import Model
 from code.config import Hyper
-from code.models.tde_classifier import TDEClassifier
-from code.models.encoder import Encoder
+from code.layers import TDEClassifier
+from code.layers import Encoder
 from code.metrics import F1
 
 

@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from code.models.gate import ScalableGate
-from code.models.module import Module
+from code.layers.gate import ScalableGate
+from code.layers.module import Module
 
 
 class NormedLinear(nn.Module):

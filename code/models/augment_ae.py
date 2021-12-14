@@ -1,6 +1,6 @@
 from code.config import Hyper
 from code.models.ae import AEModel
-from code.models.classifier import AugmentMetaClassifier
+from code.layers import AugmentMetaClassifier
 
 
 class AugmentMetaAEModel(AEModel):

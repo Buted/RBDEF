@@ -6,8 +6,8 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import CoarseSelectorClassifier
-from code.models.encoder import Encoder
+from code.layers.classifier import CoarseSelectorClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics.coarse_f1 import CoarseF1
 

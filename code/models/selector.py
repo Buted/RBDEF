@@ -2,12 +2,12 @@ import torch
 
 import torch.nn as nn
 
-from typing import Dict, Tuple
+from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import SelectorClassifier
-from code.models.encoder import Encoder
+from code.layers import SelectorClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics.binary_f1 import BinaryMetric
 from code.metrics.pr_curve import BinaryPRCurve

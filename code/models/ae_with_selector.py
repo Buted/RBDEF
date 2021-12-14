@@ -6,8 +6,8 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import ScaleMainClassifier, SelectorClassifier
-from code.models.encoder import Encoder
+from code.layers.classifier import ScaleMainClassifier, SelectorClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics.multi_task_f1 import MultiTaskF1
 

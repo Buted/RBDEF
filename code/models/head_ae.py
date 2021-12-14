@@ -1,5 +1,4 @@
 import torch
-import logging
 
 import torch.nn as nn
 
@@ -7,11 +6,10 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import ScaleHeadClassifier
-from code.models.encoder import Encoder
+from code.layers import ScaleHeadClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics import HeadF1
-from tests.time import log_time
 
 
 class HeadAEModel(Model):
@@ -31,7 +29,6 @@ class HeadAEModel(Model):
 
         self.to(hyper.gpu)
 
-    # @log_time
     def forward(self, sample, is_train: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)

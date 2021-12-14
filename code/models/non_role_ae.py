@@ -1,6 +1,6 @@
 from code.models.selector import Selector
 from code.config import Hyper
-from code.models.classifier import NonRoleClassifier
+from code.layers import NonRoleClassifier
 
 
 class NonRoleFilter(Selector):

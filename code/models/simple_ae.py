@@ -1,5 +1,5 @@
 from code.config import Hyper
-from code.models.classifier import SimpleClassifier
+from code.layers import SimpleClassifier
 from code.models.ae import AEModel
 
 

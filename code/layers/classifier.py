@@ -6,8 +6,8 @@ import torch.nn.functional as F
 
 from typing import List, Tuple
 
-from code.models.gate import Gate, ScalableGate
-from code.models.module import Module
+from code.layers.gate import Gate, ScalableGate
+from code.layers.module import Module
 
 
 class Classifier(Module):

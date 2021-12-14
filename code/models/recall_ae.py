@@ -2,12 +2,12 @@ import torch
 
 import torch.nn as nn
 
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import MainClassifier, MetaClassifier, SelectorClassifier
-from code.models.encoder import Encoder
+from code.layers import MainClassifier, MetaClassifier, SelectorClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.metrics import F1
 

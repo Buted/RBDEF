@@ -7,7 +7,7 @@ from typing import Tuple
 from functools import partial
 
 from code.config import Hyper
-from code.models.module import Module
+from code.layers.module import Module
 
 
 class Encoder(Module):

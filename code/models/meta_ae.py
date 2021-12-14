@@ -6,12 +6,12 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.models.classifier import MetaClassifier
-from code.models.encoder import Encoder
+from code.layers import MetaClassifier
+from code.layers import Encoder
 from code.models.model import Model
 from code.loss import SoftCrossEntropyLoss, MaskHandler
 from code.metrics import MetaF1
-from code.models.sample_dropout import SampleDropout
+from code.layers.sample_dropout import SampleDropout
 
 
 class MetaAEModel(Model):

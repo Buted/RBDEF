@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from code.models.module import Module
+from code.layers import Module
 
 
 class Model(nn.Module):

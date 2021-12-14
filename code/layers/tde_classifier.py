@@ -1,8 +1,8 @@
 import torch
 
-from code.models.gate import ScalableGate
-from code.models.module import Module
-from code.models.casual_norm_classifier import Causal_Norm_Classifier
+from code.layers.gate import ScalableGate
+from code.layers.module import Module
+from code.layers.casual_norm_classifier import Causal_Norm_Classifier
 
 
 class TDEClassifier(Module):
