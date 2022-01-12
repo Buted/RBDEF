@@ -45,13 +45,25 @@ class ACE_Dataset(Dataset):
         ) = ([] for _ in range(10))
 
         sample_num = 0
+        skipped_sample_num = 0
         for sample in JsonHandler.read_json(os.path.join(hyper.data_root, dataset)):
             sample_num += 1
+            # if sample_num > 100:
+                # break
 
             tokens, wid2tid = self._tokenize(hyper.tokenizer, sample["words"])
+            # if len(tokens) > 300:
+            #     longer_than_bert += 1
+            #     continue
+            # logging.info(wid2tid)
+            # logging.info(sample["sentence"])
 
             entity = sample["entity"]
-            entity_start, entity_end = wid2tid[entity["start"]], wid2tid[entity["end"]]
+            try:
+                entity_start, entity_end = wid2tid[entity["start"]], wid2tid[entity["end"]]
+            except KeyError:
+                skipped_sample_num += 1
+                continue
             entity_type = hyper.entity2id[entity["entity_type"]]
             entity_id = np.full_like(tokens, hyper.entity2id[NonEntity])
             entity_id[entity_start: entity_end] = entity_type
@@ -78,6 +90,7 @@ class ACE_Dataset(Dataset):
             self.event_type.append(event_type)
         
         logging.info("The number of samples: %d" % sample_num)
+        logging.info("The number of skipped samples: %d" % skipped_sample_num)
 
     @staticmethod
     def _tokenize(tokenizer, words: List[str]) -> Tuple[List[int], Dict[int, int]]:
