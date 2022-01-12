@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 from functools import reduce
 
 from code.config import Hyper
-from code.layers import ScaleHeadClassifier, MetaClassifier, SelectorClassifier
+from code.layers import ScaleHeadClassifier, MetaClassifier, SelectorClassifier, MetaWithEmbeddingClassifier
 from code.layers import Encoder
 from code.models.model import Model
 from code.metrics import F1
@@ -21,7 +21,8 @@ class FusedAEModel(Model):
         self.encoder = Encoder(hyper)
         self.selectors = SelectorClassifier.load_group(self.encoder.embed_dim, hyper.out_dim)
         self.head_classifier = ScaleHeadClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - hyper.n + 1)
-        self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
+        # self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
+        self.meta_classifier = MetaWithEmbeddingClassifier(hyper, self.encoder.embed_dim)
         self.load()
 
         self.metric = F1(hyper)
@@ -38,7 +39,8 @@ class FusedAEModel(Model):
         select_logits = self.selector(entity_encoding, trigger_encoding)
 
         head_logits = self.head_classifier(entity_encoding, trigger_encoding)
-        meta_logits = self.meta_classifier(entity_encoding, trigger_encoding)
+        entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
+        meta_logits = self.meta_classifier(entity_encoding, trigger_encoding, entity_type, event_type)
 
         
         self._update_metric((select_logits, head_logits, meta_logits), labels)

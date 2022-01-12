@@ -2,6 +2,8 @@ import torch
 
 import torch.nn as nn
 
+from code.config import Hyper
+
 
 class Gate(nn.Module):
     def __init__(self, embed_dim: int):
@@ -30,3 +32,43 @@ class ScalableGate(nn.Module):
         entity = self.entity_scaling(entity)
         trigger = self.trigger_scaling(trigger)
         return self.gate(entity, trigger)
+
+
+# class ScalableGateWithEmbedding(nn.Module):
+#     def __init__(self, embed_dim: int, hyper: Hyper):
+#         super(ScalableGateWithEmbedding, self).__init__()
+#         self.entity_embedding = nn.Embedding(hyper.entity_vocab_size, hyper.out_dim)
+#         self.event_embedding = nn.Embedding(hyper.event_vocab_size, hyper.out_dim)
+#         self.entity_scaling = nn.Linear(embed_dim, hyper.out_dim)
+#         self.trigger_scaling = nn.Linear(embed_dim, hyper.out_dim)
+#         self.gate = Gate(hyper.out_dim)
+
+#     def forward(self, entity, trigger, entity_id, event_id):
+#         entity_emb = self.entity_embedding(entity_id)
+#         event_emb = self.event_embedding(event_id)
+#         entity = self.entity_scaling(entity)
+#         trigger = self.trigger_scaling(trigger)
+#         entity = entity + entity_emb
+#         trigger = trigger + event_emb
+#         return self.gate(entity, trigger)
+
+
+class ScalableGateWithEmbedding(nn.Module):
+    def __init__(self, embed_dim: int, hyper: Hyper):
+        super(ScalableGateWithEmbedding, self).__init__()
+        self.entity_embedding = nn.Embedding(hyper.entity_vocab_size, hyper.out_dim)
+        self.event_embedding = nn.Embedding(hyper.event_vocab_size, hyper.out_dim)
+        self.entity_scaling = nn.Linear(embed_dim, hyper.out_dim)
+        self.trigger_scaling = nn.Linear(embed_dim, hyper.out_dim)
+        self.gate = Gate(hyper.out_dim)
+
+    def forward(self, entity, trigger, entity_id, event_id):
+        entity_emb = self.entity_embedding(entity_id)
+        event_emb = self.event_embedding(event_id)
+        entity = self.entity_scaling(entity)
+        trigger = self.trigger_scaling(trigger)
+        # entity = entity + entity_emb + event_emb
+        # trigger = trigger + entity_emb + event_emb
+        return self.gate(entity, trigger) + entity_emb + event_emb
+        # return self.gate(entity, trigger)
+

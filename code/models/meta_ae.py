@@ -6,12 +6,12 @@ from typing import Dict
 from functools import partial
 
 from code.config import Hyper
-from code.layers import MetaClassifier
+from code.layers import MetaClassifier, MetaWithEmbeddingClassifier
 from code.layers import Encoder
 from code.models.model import Model
-from code.loss import SoftCrossEntropyLoss, MaskHandler
+from code.loss import SoftCrossEntropyLoss, MaskHandler, AdjustCrossEntropy
 from code.metrics import MetaF1
-from code.layers.sample_dropout import SampleDropout
+from code.layers import WeightAdjust
 
 
 class MetaAEModel(Model):
@@ -22,39 +22,49 @@ class MetaAEModel(Model):
         self.encoder = Encoder(hyper)
         self.encoder.load()
 
-        self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
+        # self.classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
+        self.classifier = MetaWithEmbeddingClassifier(hyper, self.encoder.embed_dim)
 
         self.soft_loss = SoftCrossEntropyLoss()
         self.loss = nn.CrossEntropyLoss()
+        self.adjust_loss = AdjustCrossEntropy(hyper.gamma)
 
         self.mask_handler = MaskHandler(hyper)
 
         self.metric = MetaF1(hyper)
         self.get_metric = self.metric.report
 
-        self.remap = {i: hyper.meta_roles.index(i) if i in hyper.meta_roles else 0 for i in range(hyper.role_vocab_size)}
+        self.remap = {r: i for i, r in enumerate(hyper.meta_roles)}
         self.soft = True
+
+        self.weight_adjuster = WeightAdjust(hyper)
 
         # self.dropout = SampleDropout(hyper)
 
         self.to(self.gpu)
 
-    def meta_forward(self, sample, classifier, remap: Dict[int, int], is_train: bool=False) -> Dict:
+    def meta_forward(self, sample, classifier, remap: Dict[int, int]=None, outloop: bool=False) -> Dict:
         output = {}
         labels = sample.label.cuda(self.gpu)
 
         with torch.no_grad():
-            if self.soft:
-                labels = self.mask_handler.generate_soft_label(sample, remap)
+            # if not outloop:
+                # labels = self.mask_handler.generate_soft_label(sample, remap)
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
-        logits = classifier(entity_encoding, trigger_encoding)
+        entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
+        logits = classifier(entity_encoding, trigger_encoding, entity_type, event_type)
+        # logits = classifier(entity_encoding, trigger_encoding)
 
-        output['loss'] = self.soft_loss(logits, target=labels) if self.soft else self.loss(logits, target=labels)
-        
-        if is_train:
-            output["description"] = partial(self.description, output=output)
+        if outloop:
+            # entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
+            # original_labels = sample.ori_label.cuda(self.gpu)
+            # adjusted_weight = self.weight_adjuster(original_labels, entity_type, event_type)
+            adjusted_weight = sample.important.cuda(self.gpu).float()
+            output['loss'] = self.adjust_loss(logits, target=labels, adjusts=adjusted_weight)
+        else:
+            output['loss'] = self.loss(logits, target=labels)            
             
         return output
 
@@ -69,10 +79,8 @@ class MetaAEModel(Model):
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
-        # if is_train:
-        #     entity_encoding = self.dropout(entity_encoding, hard_label)
-        #     trigger_encoding = self.dropout(trigger_encoding, hard_label)
-        logits = self.classifier(entity_encoding, trigger_encoding)
+        entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
+        logits = self.classifier(entity_encoding, trigger_encoding, entity_type, event_type)
 
         output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)
         

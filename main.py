@@ -71,6 +71,10 @@ class Runner:
             preprocessor = ACE_Preprocessor(self.hyper)
             preprocessor.gen_type_vocab()
             preprocessor.gen_all_data()
+        elif mode == 'divide':
+            self.hyper.vocab_init()
+            divider = DatasetDivider(self.hyper)
+            divider.divide()
         elif mode == 'train':
             self.hyper.vocab_init()
             self._init_loader()
@@ -140,6 +144,9 @@ class Runner:
         elif mode == 'group':
             self.hyper.vocab_init()
             self._group_split()
+        elif mode == 'important':
+            self.hyper.vocab_init()
+            self._compute_important_indicator()
         else:
             raise ValueError("Invalid mode!")
 
@@ -181,7 +188,7 @@ class Runner:
             "Coarse": ACE_loader,
             "NonRole": ACE_loader,
             "Branch": ACE_loader,
-            "Meta": ACE_loader,
+            "Meta": Meta_loader,
             "FewRoleWithOther": ACE_loader,
             "FewRole": ACE_loader,
             "Head": ACE_loader,
@@ -248,6 +255,8 @@ class Runner:
             logging.info(log)
             if self.hyper.model == "Selector":
                 self.save_model(str(epoch))
+            elif self.hyper.model == "FewRole":
+                self.save_model(str(epoch))
             if new_score >= score:
                 score = new_score
                 best_epoch = epoch
@@ -310,12 +319,12 @@ class Runner:
                 support_dataset, query_dataset = next(train_dataloader_generator)
                 for _ in range(self.hyper.fast_steps):
                     sample = sampler(support_dataset)
-                    output = self.model.meta_forward(sample, cloned_model, support_dataset.remap, is_train=True)
+                    output = self.model.meta_forward(sample, cloned_model, support_dataset.remap)
                     cloned_model.adapt(output["loss"])
                     # logging.info("loss: %.4f" % output["loss"].item())
                 
                 sample = sampler(query_dataset)
-                output = self.model.meta_forward(sample, cloned_model, query_dataset.remap, is_train=True)
+                output = self.model.meta_forward(sample, cloned_model, query_dataset.remap, outloop=True)
                 loss += output["loss"]
                 
             if np.isnan(loss.item()):
@@ -339,16 +348,17 @@ class Runner:
         filter_roles = list(range(self.hyper.role_vocab_size))
         for role in self.hyper.filter_roles:
             filter_roles.remove(role)
-        biased_dataset = AugmentedBiasedSampling_Dataset(self.hyper, dataset_name)
+        # biased_dataset = AugmentedBiasedSampling_Dataset(self.hyper, dataset_name)
+        biased_dataset = ImportantIndicator_Dataset(self.hyper, dataset_name)
         # biased_dataset = Meta_Dataset(self.hyper, dataset_name)
         dataset = l2l.data.MetaDataset(biased_dataset, indices_to_labels=biased_dataset.indices2labels)
         # print({label: len(indices) for label, indices in dataset.labels_to_indices.items()})
         tasks = l2l.data.TaskDataset(dataset,
             task_transforms=[
-                l2l.data.transforms.FilterLabels(dataset, filter_roles),
-                BiasedSamplingNWays(dataset, n=n, probability=biased_dataset.probability),
-                l2l.data.transforms.KShots(dataset, k=k*2),
-                # l2l.data.transforms.FusedNWaysKShots(dataset, n=n, k=k*2, filter_labels=filter_roles)
+                # l2l.data.transforms.FilterLabels(dataset, filter_roles),
+                # BiasedSamplingNWays(dataset, n=n, probability=biased_dataset.probability),
+                # l2l.data.transforms.KShots(dataset, k=k*2),
+                l2l.data.transforms.FusedNWaysKShots(dataset, n=n, k=k*2, filter_labels=filter_roles)
             ],
             num_tasks=num_tasks
         )
@@ -512,6 +522,7 @@ class Runner:
             % (self.hyper.statistic, formatted_matrix)
         )
         co_occur_matrix.save()
+        co_occur_matrix.reverse_save()
 
     def _train_and_evaluate_indicator(self):
         logging.info("Load dataset.")
@@ -591,6 +602,10 @@ class Runner:
     def _group_split(self):
         spliter = GroupSplit(self.hyper.train, self.hyper)
         spliter.split()
+
+    def _compute_important_indicator(self):
+        co_occur_matrix = CoOccurStatistic(self.hyper)
+        co_occur_matrix.save_important_indicator_of_samples()
 
     def _set_seed(self):
         np.random.seed(self.hyper.seed)

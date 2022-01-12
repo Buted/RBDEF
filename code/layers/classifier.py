@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from typing import List, Tuple
 
-from code.layers.gate import Gate, ScalableGate
+from code.layers.gate import Gate, ScalableGate, ScalableGateWithEmbedding
 from code.layers.module import Module
 
 
@@ -92,6 +92,17 @@ class MetaClassifier(Module):
         super(MetaClassifier, self).__init__()
         self.gate = ScalableGate(embed_dim, out_dim)
         self.classifier = nn.Linear(out_dim, n_class)
+        
+    def forward(self, *args):
+        h = self.gate(*args)
+        return self.classifier(h)
+
+
+class MetaWithEmbeddingClassifier(Module):
+    def __init__(self, hyper, embed_dim: int):
+        super(MetaWithEmbeddingClassifier, self).__init__()
+        self.gate = ScalableGateWithEmbedding(embed_dim, hyper)
+        self.classifier = nn.Linear(hyper.out_dim, hyper.n)
         
     def forward(self, *args):
         h = self.gate(*args)

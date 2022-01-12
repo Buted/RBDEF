@@ -53,3 +53,35 @@ class CoOccurStatistic:
             for key_type, co_occur in co_occur_matrix.items()
         }
         JsonHandler.write_json(filename, matrix)
+    
+    def reverse_save(self) -> None:
+        self._build_reverse_co_occur_matrix()
+        filename = lambda x: os.path.join(self.hyper.data_root, x + '.json')
+        JsonHandler.write_json(filename('role2entity'), self.role2entity)
+        JsonHandler.write_json(filename('role2event'), self.role2event)
+
+    def _build_reverse_co_occur_matrix(self):
+        self.role2entity = defaultdict(set)
+        self.role2event = defaultdict(set)
+        for entity_type, role, event_type in self._yield_mention_info():
+            role_id = self.hyper.role2id[role]
+            self.role2entity[role_id].add(self.hyper.entity2id[entity_type])
+            self.role2event[role_id].add(self.hyper.event2id[event_type])
+
+        for role in self.role2entity:
+            self.role2entity[role] = list(self.role2entity[role])
+            self.role2event[role] = list(self.role2event[role])
+    
+    def save_important_indicator_of_samples(self):  
+        important_entity_and_event = []
+        for entity_type, role, event_type in self._yield_mention_info():
+            if self.hyper.role2id[role] in self.hyper.meta_roles:
+                important_entity_and_event.append((entity_type, event_type))
+
+        important_indicator = []
+        for entity_type, role, event_type in self._yield_mention_info():
+            if (entity_type, event_type) in important_entity_and_event:
+                important_indicator.append(1)
+            else:
+                important_indicator.append(0)
+        JsonHandler.write_json(os.path.join(self.hyper.data_root, 'important_indicator.json'), important_indicator)

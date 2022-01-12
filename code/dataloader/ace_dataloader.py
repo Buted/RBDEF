@@ -52,11 +52,6 @@ class ACE_Dataset(Dataset):
                 # break
 
             tokens, wid2tid = self._tokenize(hyper.tokenizer, sample["words"])
-            # if len(tokens) > 300:
-            #     longer_than_bert += 1
-            #     continue
-            # logging.info(wid2tid)
-            # logging.info(sample["sentence"])
 
             entity = sample["entity"]
             try:
