@@ -53,9 +53,10 @@ class MaskHandler:
         entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
         entity_weight = self.entity_co_occur_embedding(entity_type)
         event_weight = self.event_co_occur_embedding(event_type)
-        weight = entity_weight + event_weight
+        weight = entity_weight * event_weight
+        weight = torch.ones_like(weight)
 
-        weight *= self.meta_mask
+        # weight *= self.meta_mask
 
         weight = weight.matmul(self._gen_cur_tranform_matrix(remap))
 
