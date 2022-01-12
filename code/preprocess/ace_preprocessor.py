@@ -3,16 +3,18 @@ import json
 import logging
 
 from typing import List, Dict, Tuple
+from collections import defaultdict
 
 from code.config import NonRole, NonEntity, NonEvent
 from code.utils import JsonHandler
 
 
 class Entity:
-    def __init__(self, entity_start: int, entity_end: int, entity_type: str):
+    def __init__(self, entity_start: int, entity_end: int, entity_type: str, text: str):
         self.start = entity_start
         self.end = entity_end
         self.entity_type = entity_type
+        self.text = text
 
     def __eq__(self, other) -> bool:
         return self.start == other.start and self.end == other.end and self.entity_type == other.entity_type
@@ -28,7 +30,8 @@ class Role:
             return self.has_same_entity(other)
         elif isinstance(other, Role):
             if other.entity == self.entity:
-                logging.info("The entity (type: %s, start: %d) plays multi-roles in an event!" % (self.entity_type, self.start))
+                if other.role != self.role:
+                    logging.info("The entity (%s type: %s, start: %d, role1: %s, role2: %s) plays multi-roles in an event!" % (self.entity.text, self.entity_type, self.start, other.role, self.role))
                 return True
             return False     
         else:
@@ -64,7 +67,7 @@ class Sentence:
 
     @staticmethod
     def _extract_entity(entity_info: Dict) -> Entity:
-        return Entity(entity_info["start"], entity_info["end"], entity_info["entity-type"].split(':')[0])
+        return Entity(entity_info["start"], entity_info["end"], entity_info["entity-type"].split(':')[0], entity_info["text"])
 
     def _extract_events(self):
         for event_info in self.sentence["golden-event-mentions"]:
@@ -125,6 +128,17 @@ class Sentence:
             "trigger": trigger
         }
         
+    def check_special_role(self, role: str) -> int:
+        result = 0
+        if role in self.get_role_types():
+            for event in self.event2arguments:
+                special_role_entities = [argument.entity_type for argument in self.event2arguments[event][0] if argument.role == role]
+                other_role_entities = [argument.entity_type for argument in self.event2arguments[event][0] if argument.role != role]
+                for entity_type in special_role_entities:
+                    if entity_type in other_role_entities:
+                        result += 1
+        return result
+
 
 class ACE_Preprocessor:
     def __init__(self, hyper):
@@ -174,6 +188,8 @@ class ACE_Preprocessor:
 
     def _gen_one_data(self, dataset: str) -> None:
         logging.info("Preprocess %s" % dataset.split('.')[0])
+        self.including_special_conditions = defaultdict(int)
+        self.all_conditions = defaultdict(int)
         source = os.path.join(self.raw_data_root, dataset)
         target = os.path.join(self.data_root, dataset)
 
@@ -182,7 +198,17 @@ class ACE_Preprocessor:
             samples.extend(self._process_sentence(sentence))
         
         JsonHandler.write_json(target, samples)
+        format_report = lambda special, all: "\n".join(
+                [
+                    "%s: %d/%d" % (role, special[role], all[role])
+                    for role in special
+                ]
+            )
+        logging.info(format_report(self.including_special_conditions, self.all_conditions))
 
     def _process_sentence(self, sentence: Dict) -> List[Dict]:
         sentence = Sentence(sentence)
+        for role in self.role2id:
+            self.including_special_conditions[role] += sentence.check_special_role(role)
+            self.all_conditions[role] += sentence.get_role_types().count(role)
         return sentence.gen_samples()
