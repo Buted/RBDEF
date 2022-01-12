@@ -20,6 +20,7 @@ class Hyper(object):
         # preprocess, merge
         self.raw_data_root: str
         self.raw_data_list: List[str]
+        self.divided_data_root: str
 
         # train
         self.train: str
@@ -51,6 +52,7 @@ class Hyper(object):
         self.filter_roles: List[int]
         self.soft: float
         self.prob: List[float]
+        self.gamma: float
 
         # CB-loss
         self.role2num: Dict[int, int]
