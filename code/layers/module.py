@@ -7,7 +7,7 @@ import torch.nn as nn
 class Module(nn.Module):
     def __init__(self):
         super(Module, self).__init__()
-        self.model_dir = os.path.join('saved_models', 'layers')
+        self.model_dir = os.path.join('saved_models', 'kbp_layers')
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
     

@@ -7,7 +7,7 @@ from code.config import Hyper
 
 
 def merge_dataset(hyper: Hyper) -> None:
-    complete_path = partial(os.path.join, hyper.raw_data_root)
+    complete_path = partial(os.path.join, hyper.data_root)
     source = [complete_path(filename) for filename in hyper.raw_data_list]
     target = complete_path("all_data.json")
 

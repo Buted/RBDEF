@@ -41,7 +41,7 @@ class Balanced_loader:
                 num_workers=8,
             )).next()
         self.iter_times = 0
-        self.iters_each_epoch = 250
+        self.iters_each_epoch = 30
         self.num_tasks = self.hyper.epoch_num * self.iters_each_epoch
     
     def _get_balance_dataset(self):
