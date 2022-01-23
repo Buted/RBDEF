@@ -3,6 +3,7 @@ from code.models.selector import Selector
 from code.models.meta_ae import MetaAEModel
 from code.models.recall_ae import RecallAEModel
 from code.models.head_ae import HeadAEModel
+from code.models.headwithoutrecall_ae import HeadWithoutRecallAEModel
 from code.models.non_role_ae import NonRoleFilter
 from code.models.branch_selector import BranchSelector
 from code.models.fused_ae import FusedAEModel
@@ -14,3 +15,4 @@ from code.models.dice_ae import DiceAEModel
 from code.models.class_balanced_ae import ClassBalancedAEModel
 from code.models.tde_ae import TDEAEModel
 from code.models.fair_ae import FairAEModel
+from code.models.routing import Routing

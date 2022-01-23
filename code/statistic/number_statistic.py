@@ -25,5 +25,5 @@ class RoleNumberCounter:
         self.write(role2num)
 
     def write(self, data):
-        filename = os.path.join(self.hyper.data_root, "role2num.json")
+        filename = os.path.join(self.hyper.data_root, "roleid2num.json")
         JsonHandler.write_json(filename, data)

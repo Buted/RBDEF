@@ -6,6 +6,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from code.dataloader.ace_dataloader import ACE_Dataset, Batch_reader
 from code.config import Hyper
+from code.dataloader.few_role_dataloader import FewRole_Dataset
 
 
 class FewRoleWithOther_Dataset(ACE_Dataset):
@@ -45,6 +46,22 @@ class HeadRole_Dataset(FewRoleWithOther_Dataset):
             if i not in select_roles:
                 role_remap[i] = j
                 j += 1
+        return role_remap
+
+
+class HeadWithoutRecallRole_Dataset(FewRole_Dataset):
+    def _delete_unuseless_roles(self, select_roles: List[int]):
+        using_sample_ids = [i for i in range(len(self.label)) if self.label[i] not in select_roles]
+        self._delete_fields(using_sample_ids)
+        
+        self.label_set = set([self.label[i] for i in range(len(self.label))])
+        self._remap_labels(select_roles)
+
+    def _build_role_remap(self, select_roles: List[int]):
+        role_remap = {}
+        for label in self.label_set:
+            if label not in select_roles:
+                role_remap[label] = len(role_remap)
         return role_remap
 
 

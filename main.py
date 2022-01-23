@@ -147,6 +147,11 @@ class Runner:
         elif mode == 'important':
             self.hyper.vocab_init()
             self._compute_important_indicator()
+        elif mode == 'roc':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._plot_roc()
         else:
             raise ValueError("Invalid mode!")
 
@@ -167,6 +172,7 @@ class Runner:
             "Main model": ACE_Dataset,
             "Simple": ACE_Dataset,
             "Selector": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
+            "Routing": partial(Selector_Dataset, select_roles=self.hyper.meta_roles),
             "Coarse": partial(CoarseSelector_Dataset, select_roles=self.hyper.meta_roles),
             "NonRole": NonRole_Dataset,
             "Branch": partial(Branch_Dataset, select_roles=self.hyper.meta_roles),
@@ -174,6 +180,7 @@ class Runner:
             "FewRoleWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
             "FewRole": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles),
             "Head": partial(HeadRole_Dataset, select_roles=self.hyper.meta_roles),
+            "HeadWithoutRecall": partial(HeadWithoutRecallRole_Dataset, select_roles=self.hyper.meta_roles),
             "Recall": partial(Recall_Dataset, select_roles=self.hyper.meta_roles),
             "Fuse": ACE_Dataset,
             "AEWithSelector": partial(AE_With_Selector_Dataset, select_roles=self.hyper.meta_roles),
@@ -208,6 +215,7 @@ class Runner:
             "Main model": AEModel,
             "Simple": SimpleAEModel,
             "Selector": Selector,
+            "Routing": Routing,
             "Coarse": CoarseSelector,
             "NonRole": NonRoleFilter,
             "Branch": BranchSelector,
@@ -215,6 +223,7 @@ class Runner:
             "FewRoleWithOther": MetaAEModel,
             "FewRole": MetaAEModel,
             "Head": HeadAEModel,
+            "HeadWithoutRecall": HeadWithoutRecallAEModel,
             "Recall": RecallAEModel,
             "Fuse": FusedAEModel,
             "AEWithSelector": AEWithSelector,
@@ -606,6 +615,12 @@ class Runner:
     def _compute_important_indicator(self):
         co_occur_matrix = CoOccurStatistic(self.hyper)
         co_occur_matrix.save_important_indicator_of_samples()
+
+    def _plot_roc(self):
+        test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
+        logging.info('Load testset done.')
+        self.evaluation(test_loader)
+        self.model.plot()
 
     def _set_seed(self):
         np.random.seed(self.hyper.seed)

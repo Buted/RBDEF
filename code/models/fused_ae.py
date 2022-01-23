@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 from functools import reduce
 
 from code.config import Hyper
-from code.layers import ScaleHeadClassifier, MetaClassifier, SelectorClassifier, MetaWithEmbeddingClassifier
+from code.layers import ScaleHeadClassifier, MetaClassifier, SelectorClassifier, MetaWithEmbeddingClassifier, ScaleHeadWithoutRecallClassifier
 from code.layers import Encoder
 from code.models.model import Model
 from code.metrics import F1
@@ -16,11 +16,13 @@ class FusedAEModel(Model):
         self.gpu = hyper.gpu
         self.meta_roles = hyper.meta_roles
         self.head_roles = [0, 1] + [i for i in range(1, hyper.role_vocab_size) if i not in self.meta_roles]
+        # self.head_roles = [i for i in range(hyper.role_vocab_size) if i not in self.meta_roles]
         self.threshold = 0.5
         
         self.encoder = Encoder(hyper)
         self.selectors = SelectorClassifier.load_group(self.encoder.embed_dim, hyper.out_dim)
         self.head_classifier = ScaleHeadClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - hyper.n + 1)
+        # self.head_classifier = ScaleHeadWithoutRecallClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.role_vocab_size - hyper.n)
         # self.meta_classifier = MetaClassifier(self.encoder.embed_dim, hyper.out_dim, hyper.n)
         self.meta_classifier = MetaWithEmbeddingClassifier(hyper, self.encoder.embed_dim)
         self.load()
@@ -65,7 +67,9 @@ class FusedAEModel(Model):
         predicts = torch.zeros_like(meta_predicts)
         for i, (select_p, head_p, meta_p) in enumerate(zip(select_predicts, head_predicts, meta_predicts)):
 
-            if select_p > 1 or head_p == 1:
+            if select_p > 1 or (not isinstance(self.head_classifier, ScaleHeadWithoutRecallClassifier) and head_p == 1):
+            # if select_p > 0:
+            # if head_p == 1:
                 predicts[i] = self.meta_roles[meta_p]
             else:
                 predicts[i] = self.head_roles[head_p]
@@ -79,6 +83,7 @@ class FusedAEModel(Model):
             return select_predicts
         
         choices = [choice(logit) for logit in select_logits]
+        # return choices[1]
         final_choice = reduce(lambda x, y: x + y, choices)
         return final_choice
 

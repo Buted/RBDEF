@@ -50,6 +50,10 @@ class ScaleHeadClassifier(ScalableClassifier):
     pass
 
 
+class ScaleHeadWithoutRecallClassifier(ScalableClassifier):
+    pass
+
+
 class SelectorClassifier(Module):
     def __init__(self, embed_dim: int, out_dim: int):
         super(SelectorClassifier, self).__init__()
