@@ -56,7 +56,7 @@ Evaluate RBDEF:
 
 ```bash
 # no training, only evaluation
-set *model* of `ace.json` in `config` to "Fuse"
+set model of `ace.json` in `config` to "Fuse"
 set mode of `train.sh` in `scripts` to "threshold"
 run the command "bash scripts/train.sh"
 ```
