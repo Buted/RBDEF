@@ -1,0 +1,16 @@
+{
+    "None": 0,
+    "ORG": 1,
+    "PER": 2,
+    "TIM": 3,
+    "GPE": 4,
+    "VEH": 5,
+    "LOC": 6,
+    "Job-Title": 7,
+    "Numeric": 8,
+    "FAC": 9,
+    "WEA": 10,
+    "Contact-Info": 11,
+    "Sentence": 12,
+    "Crime": 13
+}

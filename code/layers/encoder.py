@@ -5,6 +5,7 @@ import torch.hub as pretrained
 
 from typing import Tuple
 from functools import partial
+from transformers.models.bert import BertModel
 
 from code.config import Hyper
 from code.layers.module import Module
@@ -15,8 +16,8 @@ class Encoder(Module):
         super(Encoder, self).__init__()
         self.gpu = hyper.gpu
 
-        self.encoder = pretrained.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
-        # self.encoder = BertModel.from_pretrained('bert-base-cased')
+        # self.encoder = pretrained.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
+        self.encoder = BertModel.from_pretrained('bert-base-cased')
 
         self.embed_dim = self.encoder.config.hidden_size
         self.entity_embedding = nn.Embedding(hyper.entity_vocab_size, self.embed_dim)

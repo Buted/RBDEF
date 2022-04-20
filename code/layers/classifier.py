@@ -58,6 +58,7 @@ class SelectorClassifier(Module):
     def __init__(self, embed_dim: int, out_dim: int):
         super(SelectorClassifier, self).__init__()
         self.gate = ScalableGate(embed_dim, out_dim)
+        # print("selector")
         self.classifier = nn.Linear(out_dim, 1)
         self.embed_dim = embed_dim
         self.out_dim = out_dim

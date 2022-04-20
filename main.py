@@ -152,9 +152,51 @@ class Runner:
             self._init_loader()
             self._init_model()
             self._plot_roc()
+        elif mode == 'fewshot':
+            self.hyper.vocab_init()
+            self._init_loader()
+            self._init_model()
+            self._init_optimizer()
+            self._fewshot_finetune()
+        elif mode == 'parameter':
+            self.hyper.vocab_init()
+            self._init_model()
+            logging.info("Model parameter: %f M" % self.model.get_parameter_number())
         else:
             raise ValueError("Invalid mode!")
 
+    def _fewshot_finetune(self):
+        # self.model.load()
+        self.save_model('fewshot')
+        divider = FewshotDivider(self.hyper)
+        avg_acc = 0.0
+        for i in range(self.hyper.num_task):
+            divider.generate_dataset()
+            train_loader = self._get_loader('fewshot-train.json', 25, 8)
+            test_loader = self._get_loader('fewshot-test.json', self.hyper.batch_size_eval, 4)
+            # self.model.load()
+            self.load_model('fewshot')
+            self.model.train()
+            self.model.encoder.eval()
+            for epoch in range(self.hyper.epoch_num):
+                for trainset in train_loader:
+                    self.optimizer.zero_grad()
+                    output = self.model(trainset, is_train=True)
+                    loss = output["loss"]
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.0)
+                    self.optimizer.step()
+                    # logging.info("Step: %d, loss: %.4f" % (epoch, loss.item()))
+            
+            self.model.reset()
+            for testset in test_loader:
+                output = self.model(testset)
+            acc = self.model.accuracy.get_metric()['accuracy']
+            logging.info("Experiment %d, acc: %.4f" % 
+            (i, acc))
+            avg_acc += acc
+        logging.info("Avgerage acc: %.2f" % (100 * avg_acc / self.hyper.num_task))
+            
     def _init_logger(self, mode, **kwargs):
         log_filename = mode if len(kwargs) == 0 else "-".join([mode] + [str(val) for val in kwargs.values()])
         log_dir = os.path.join("logs", self.exp_name)
@@ -186,7 +228,8 @@ class Runner:
             "AEWithSelector": partial(AE_With_Selector_Dataset, select_roles=self.hyper.meta_roles),
             "MetaWithOther": partial(FewRoleWithOther_Dataset, select_roles=self.hyper.meta_roles),
             "AugmentMeta": ACE_Dataset,
-            "Fair": Fair_Dataset
+            "Fair": Fair_Dataset,
+            "Fewshot": partial(FewRole_Dataset, select_roles=self.hyper.meta_roles)
         }
         loader = {
             "Main model": ACE_loader,
@@ -226,13 +269,15 @@ class Runner:
             "HeadWithoutRecall": HeadWithoutRecallAEModel,
             "Recall": RecallAEModel,
             "Fuse": FusedAEModel,
+            "FuseWithMultiEncoders": FusedAEWithMultiEncoders,
             "AEWithSelector": AEWithSelector,
             "MetaWithOther": MetaWithOtherAEModel,
             "AugmentMeta": AugmentMetaAEModel,
             "Dice": DiceAEModel,
             "ClassBalanced": ClassBalancedAEModel,
             "TDE": TDEAEModel,
-            "Fair": FairAEModel
+            "Fair": FairAEModel,
+            "Fewshot": MetaAEModel
         }
         self.model = model_dict[self.hyper.model](self.hyper)
 
@@ -262,10 +307,10 @@ class Runner:
 
             new_score, log = self.evaluation(dev_loader)
             logging.info(log)
-            if self.hyper.model == "Selector":
-                self.save_model(str(epoch))
-            elif self.hyper.model == "FewRole":
-                self.save_model(str(epoch))
+            # if self.hyper.model == "Selector":
+                # self.save_model(str(epoch))
+            # elif self.hyper.model == "FewRole":
+                # self.save_model(str(epoch))
             if new_score >= score:
                 score = new_score
                 best_epoch = epoch
@@ -362,6 +407,10 @@ class Runner:
         # biased_dataset = Meta_Dataset(self.hyper, dataset_name)
         dataset = l2l.data.MetaDataset(biased_dataset, indices_to_labels=biased_dataset.indices2labels)
         # print({label: len(indices) for label, indices in dataset.labels_to_indices.items()})
+        
+        yield from self._yield_metaset(n, k, num_tasks, dataset, filter_roles)
+
+    def _yield_metaset(self, n, k, num_tasks, dataset, filter_roles):
         tasks = l2l.data.TaskDataset(dataset,
             task_transforms=[
                 # l2l.data.transforms.FilterLabels(dataset, filter_roles),
@@ -398,21 +447,14 @@ class Runner:
             train_set = MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
         elif self.hyper.model == "FewRole":
             train_set = MetaFewRole_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
-        # elif self.hyper.model == "Coarse":
-            # train_set = MetaCoarseSelector_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
-            # self.hyper.n = 3
         elif self.hyper.model == "MetaWithOther":
-            # train_set = Meta_Dataset(self.hyper, dataset)
-            # return BalancedWithOther_loader(train_set, self.hyper)
             train_set = MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
-            # train_set = MetaMetaWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
             return Balanced_loader(train_set, self.hyper)
         elif self.hyper.model == "AugmentMetaAEModel":
             train_set = Meta_Dataset(self.hyper, dataset)
             return BalancedWithOther_loader(train_set, self.hyper)
         else:
             train_set = self.Dataset(self.hyper, dataset)
-        # train_set = self.Dataset(self.hyper, dataset) if self.hyper.model != "FewRoleWithOther" else MetaFewRoleWithOther_Dataset(self.hyper, dataset, select_roles=self.hyper.meta_roles)
         sampler = WeightedRoleSampler(train_set).sampler if self.hyper.model in ["Selector", "FewRoleWithOther"] else None
         return self.Loader(
             train_set,
@@ -435,10 +477,8 @@ class Runner:
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         test_loader = self._get_loader(self.hyper.test, self.hyper.batch_size_eval, 4)
         logging.info('Load testset done.')
-        threshold = 0.0
-        plus = [0, 0.1, 0.1, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1]
-        # threshold = 0.5
-        # plus = [0]
+        threshold = 0.5
+        plus = [0]
         best_f1 = 0.0
         best_threshold = 0.
         for plus_thresold in plus:
@@ -502,7 +542,6 @@ class Runner:
         name : str
             model name.
         """
-        # def save_model(self, epoch: int):
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
         torch.save(
@@ -580,7 +619,6 @@ class Runner:
         return format_report
     
     def _evaluate_indicator(self) -> None:
-        # self.load_model("best")
         logging.info("Load dataset.")
         test_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         logging.info("Evaluate start.")
@@ -595,11 +633,9 @@ class Runner:
         ranker = Ranker(self.hyper.role_vocab_size)
         ranker.match_file(log_filename)
         ranker.ranking()
-        # ranker.save_as_img(pic_filename)
         ranker.save_into_log()
     
     def _plot_pr_curve(self):
-        # self.model.load()
         dev_loader = self._get_loader(self.hyper.dev, self.hyper.batch_size_eval, 4)
         self.evaluation(dev_loader)
         self.model.curve.get_metric(True)

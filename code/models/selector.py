@@ -12,6 +12,7 @@ from code.models.model import Model
 from code.metrics.binary_f1 import BinaryMetric
 from code.metrics.pr_curve import BinaryPRCurve
 
+# import logging
 
 class Selector(Model):
     def __init__(self, hyper: Hyper):
@@ -42,10 +43,8 @@ class Selector(Model):
         logits = self.classifier(entity_encoding, trigger_encoding)
         logits = logits.squeeze()
 
-        output['loss'] = self.loss(logits, target=labels)
-        # output['loss']  += 0.02 * self._polar_constraint(logits)
-        
         if is_train:
+            output['loss'] = self.loss(logits, target=labels)
             output["description"] = partial(self.description, output=output)
         else:
             self._update_metric(logits, labels)

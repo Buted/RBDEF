@@ -27,3 +27,6 @@ class Model(nn.Module):
     def load(self):
         self.encoder.load()
         self.classifier.load()
+
+    def get_parameter_number(self):
+        return sum(p.numel() for p in self.parameters()) / 1e6 # magnitude using M

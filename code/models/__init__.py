@@ -16,3 +16,4 @@ from code.models.class_balanced_ae import ClassBalancedAEModel
 from code.models.tde_ae import TDEAEModel
 from code.models.fair_ae import FairAEModel
 from code.models.routing import Routing
+from code.models.fused_ae_with_multi_encoders import FusedAEWithMultiEncoders

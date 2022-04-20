@@ -10,7 +10,7 @@ from code.layers import MetaClassifier, MetaWithEmbeddingClassifier
 from code.layers import Encoder
 from code.models.model import Model
 from code.loss import SoftCrossEntropyLoss, MaskHandler, AdjustCrossEntropy
-from code.metrics import MetaF1
+from code.metrics import MetaF1, Accuracy
 from code.layers import WeightAdjust
 
 
@@ -33,9 +33,10 @@ class MetaAEModel(Model):
 
         self.metric = MetaF1(hyper)
         self.get_metric = self.metric.report
+        self.accuracy = Accuracy()
 
         self.remap = {r: i for i, r in enumerate(hyper.meta_roles)}
-        self.soft = True
+        self.soft = False
 
         self.weight_adjuster = WeightAdjust(hyper)
 
@@ -47,21 +48,26 @@ class MetaAEModel(Model):
         output = {}
         labels = sample.label.cuda(self.gpu)
 
+        # outloop = False
         with torch.no_grad():
             # if not outloop:
                 # labels = self.mask_handler.generate_soft_label(sample, remap)
             entity_encoding, trigger_encoding = self.encoder(sample, False)
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
-        entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
+        entity_type, event_type = sample.entity_type, sample.event_type
         logits = classifier(entity_encoding, trigger_encoding, entity_type, event_type)
         # logits = classifier(entity_encoding, trigger_encoding)
 
         if outloop:
-            # entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
-            # original_labels = sample.ori_label.cuda(self.gpu)
+            # entity_type, event_type = sample.entity_type, sample.event_type
+            # original_labels = sample.ori_label
             # adjusted_weight = self.weight_adjuster(original_labels, entity_type, event_type)
-            adjusted_weight = sample.important.cuda(self.gpu).float()
+            adjusted_weight = sample.important.float()
+            # self.adjust_num.append(torch.sum(adjusted_weight).item())
+            # if len(self.adjust_num) >= 100:
+            #     print(sum(self.adjust_num)/100)
+            #     exit(0)
             output['loss'] = self.adjust_loss(logits, target=labels, adjusts=adjusted_weight)
         else:
             output['loss'] = self.loss(logits, target=labels)            
@@ -82,9 +88,9 @@ class MetaAEModel(Model):
         entity_type, event_type = sample.entity_type.cuda(self.gpu), sample.event_type.cuda(self.gpu)
         logits = self.classifier(entity_encoding, trigger_encoding, entity_type, event_type)
 
-        output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)
         
         if is_train:
+            output['loss'] = self.soft_loss(logits, target=soft_labels) if self.soft else self.loss(logits, target=labels)
             output["description"] = partial(self.description, output=output)
         else:
             self._update_metric(logits, labels)
@@ -95,7 +101,13 @@ class MetaAEModel(Model):
     def _update_metric(self, logits, labels) -> None:
         predicts = torch.argmax(logits, dim=-1)
         self.metric.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
+        self.accuracy.update(golden_labels=labels.cpu(), predict_labels=predicts.cpu())
  
     def save(self):
         self.classifier.save()
         return
+
+    def reset(self):
+        self.metric.reset()
+        self.accuracy.reset()
+

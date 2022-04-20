@@ -1,0 +1,23 @@
+{
+    "None": 21086,
+    "Person": 1057,
+    "Entity": 2104,
+    "Adjudicator": 59,
+    "Recipient": 525,
+    "Giver": 564,
+    "Victim": 381,
+    "Attacker": 502,
+    "Agent": 725,
+    "Destination": 482,
+    "Origin": 179,
+    "Place": 1274,
+    "Prosecutor": 21,
+    "Audience": 133,
+    "Beneficiary": 62,
+    "Target": 373,
+    "Artifact": 25,
+    "Defendant": 295,
+    "Thing": 45,
+    "Org": 34,
+    "Plaintiff": 12
+}

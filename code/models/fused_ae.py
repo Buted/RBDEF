@@ -91,6 +91,6 @@ class FusedAEModel(Model):
         return
 
     def load(self):
-        self.encoder.load()
+        # self.encoder.load()
         self.head_classifier.load()
         self.meta_classifier.load()

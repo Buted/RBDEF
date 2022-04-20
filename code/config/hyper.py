@@ -96,7 +96,7 @@ class Hyper(object):
 
     def get_role2num(self):
         role2num = json.load(open(
-            os.path.join(self.data_root, 'role2num.json'), 
+            os.path.join(self.data_root, 'roleid2num.json'), 
             'r',
             encoding='utf-8'
         ))

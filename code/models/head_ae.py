@@ -38,10 +38,9 @@ class HeadAEModel(Model):
         entity_encoding, trigger_encoding = entity_encoding.detach(), trigger_encoding.detach()
 
         logits = self.classifier(entity_encoding, trigger_encoding)
-
-        output['loss'] = self.loss(logits, target=labels)
         
         if is_train:
+            output['loss'] = self.loss(logits, target=labels)
             output["description"] = partial(self.description, output=output)
         else:
             self._update_metric(logits, labels)

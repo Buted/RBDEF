@@ -55,8 +55,8 @@ class WeightAdjust:
     
     def __call__(self, role, entity, event):
         # score = self.role_adjust(role) + self.entity_adjust(entity) + self.event_adjust(event)
-        score = self.entity_adjust(entity) + self.event_adjust(event)
-        # score = self.event_adjust(event)
+        # score = self.entity_adjust(entity) + self.event_adjust(event)
+        score = self.event_adjust(event)
         # score = self.entity_adjust(entity)
         # score = self.role_adjust(role)
         score = score.squeeze()

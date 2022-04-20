@@ -54,7 +54,7 @@ class AugmentedBiasedSampling_Dataset(BiasedSampling_Dataset):
         self._argument(hyper)
     
     def _argument(self, hyper: Hyper):
-        for idx in hyper.meta_roles:
+        for idx in range(hyper.role_vocab_size):
             if len(self.labels2indices[idx]) >= 2 * hyper.k:
                 continue
             sample_num = len(self.labels2indices[idx])
@@ -78,7 +78,7 @@ class AugmentedBiasedSampling_Dataset(BiasedSampling_Dataset):
 
 class ImportantIndicator_Dataset(AugmentedBiasedSampling_Dataset):
     def __init__(self, hyper: Hyper, dataset: str):
-        self.important = JsonHandler.read_json(os.path.join(hyper.data_root, 'important_indicator.json'))
+        self.important = JsonHandler.read_json(os.path.join(hyper.data_root, 'important_indicator_5tail-5difficult.json'))
         super(ImportantIndicator_Dataset, self).__init__(hyper, dataset)
     
     def _append_sample(self, idx: int):

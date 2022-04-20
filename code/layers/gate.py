@@ -24,8 +24,10 @@ class Gate(nn.Module):
 class ScalableGate(nn.Module):
     def __init__(self, embed_dim: int, out_dim: int):
         super(ScalableGate, self).__init__()
+        # print('linear')
         self.entity_scaling = nn.Linear(embed_dim, out_dim)
         self.trigger_scaling = nn.Linear(embed_dim, out_dim)
+        # print('gate')
         self.gate = Gate(out_dim)
 
     def forward(self, entity, trigger):

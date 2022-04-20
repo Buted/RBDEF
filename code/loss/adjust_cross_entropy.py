@@ -25,11 +25,15 @@ class AdjustCrossEntropy:
         loss = self.cross_entropy(logits, target=target)
         # adjusts = (adjusts > 0).float()
         adjust_num = torch.sum(adjusts).item()
+        # logging.info(adjust_num)
+        # loss_tmp = loss.clone()
         if adjust_num > 0:
             # logging.info(adjust_num)
             reweight = target.shape[0] * self.gamma / adjust_num
+            # reweight += 1
             reweight = adjusts * reweight
             reweight += 1
             reweight = reweight.detach()
             loss = loss * reweight
+        # loss -= loss_tmp
         return loss.mean()
