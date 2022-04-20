@@ -13,7 +13,7 @@ For `scripts`, select the mode, see Table 1 for more details. For `config`,  it'
 ### Train base model
 
 ```bash
-set *model* of `ace.json` in `config` to "Main model"
+set model of `ace.json` in `config` to "Main model"
 set mode of `train.sh` in `scripts` to "train"
 run the command "bash scripts/train.sh"
 ```
@@ -25,7 +25,7 @@ Train base model first, then train routing, head expert and tail expert.
 Train routing:
 
 ```bash
-set *model* of `ace.json` in `config` to "Selector"
+set model of `ace.json` in `config` to "Selector"
 set mode of `train.sh` in `scripts` to "train"
 run the command "bash scripts/train.sh"
 ```
@@ -33,7 +33,7 @@ run the command "bash scripts/train.sh"
 Train head expert:
 
 ```bash
-set *model* of `ace.json` in `config` to "Head"
+set model of `ace.json` in `config` to "Head"
 set mode of `train.sh` in `scripts` to "train"
 run the command "bash scripts/train.sh"
 ```
@@ -42,12 +42,12 @@ Train tail expert:
 
 ```bash
 # meta-train first
-set *model* of `ace.json` in `config` to "Meta"
+set model of `ace.json` in `config` to "Meta"
 set mode of `train.sh` in `scripts` to "meta"
 run the command "bash scripts/train.sh"
 
 # fine-tune
-set *model* of `ace.json` in `config` to "FewRole"
+set model of `ace.json` in `config` to "FewRole"
 set mode of `train.sh` in `scripts` to "train"
 run the command "bash scripts/train.sh"
 ```
